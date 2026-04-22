@@ -60,25 +60,22 @@ ENV NODE_ENV=production \
 # /media permissions line up without extra chmod dances.
 RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs beatbattle
 
-# Standalone bundle already contains a server.js + its own slimmed
-# node_modules. We still need static assets + public/ + prisma schema/engines
-# copied in alongside.
+# Standalone bundle has server.js + a slimmed node_modules for the Next
+# runtime. We copy static assets + public/ alongside it.
 COPY --from=build --chown=beatbattle:nodejs /app/.next/standalone ./
 COPY --from=build --chown=beatbattle:nodejs /app/.next/static ./.next/static
 COPY --from=build --chown=beatbattle:nodejs /app/public ./public
 
-# Prisma: CLI binary + schema + migrations + query engine. `migrate deploy`
-# is run at container start by docker-entrypoint.sh. `prisma/seed.cjs` is
-# the esbuild-bundled seed script.
+# Prisma schema + migrations + the esbuild-bundled seed.
 COPY --from=build --chown=beatbattle:nodejs /app/prisma ./prisma
-COPY --from=build --chown=beatbattle:nodejs /app/node_modules/prisma ./node_modules/prisma
-COPY --from=build --chown=beatbattle:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-# Packages the bundled seed imports externally — these must exist in the
-# standalone node_modules tree (Next already pulls them in because they're
-# used by the app too, but listing here makes the dependency explicit).
-COPY --from=build --chown=beatbattle:nodejs /app/node_modules/bcryptjs ./node_modules/bcryptjs
-COPY --from=build --chown=beatbattle:nodejs /app/node_modules/dotenv ./node_modules/dotenv
-COPY --from=build --chown=beatbattle:nodejs /app/node_modules/pg ./node_modules/pg
+
+# Overlay the full node_modules from the build stage on top of the standalone
+# tree. Reason: pnpm's node_modules is full of symlinks into .pnpm, and Docker
+# COPY dereferences them — so cherry-picking `node_modules/prisma` alone loses
+# `@prisma/engines` (a peer dep resolved via nested symlinks). Copying the
+# entire tree preserves all resolution paths. The extra weight is a superset
+# of what standalone already ships, not a parallel install.
+COPY --from=build --chown=beatbattle:nodejs /app/node_modules ./node_modules
 
 # Entrypoint runs prisma migrate deploy, then exec's the Next server.
 COPY --chown=beatbattle:nodejs docker-entrypoint.sh ./
