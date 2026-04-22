@@ -12,6 +12,13 @@ const PUBLIC_PREFIXES = ["/api/auth", "/_next", "/favicon", "/media"];
 
 export default {
   providers: [],
+  // Always trust the incoming Host header. We're self-hosted behind nginx so
+  // the request already carries the real domain in X-Forwarded-Host / Host —
+  // Auth.js's default "only trust Vercel" heuristic rejects us otherwise
+  // ("UntrustedHost"). Setting this in config is more reliable than relying
+  // on the AUTH_TRUST_HOST env var propagating into every runtime (edge,
+  // node, build).
+  trustHost: true,
   pages: {
     signIn: "/login",
   },
