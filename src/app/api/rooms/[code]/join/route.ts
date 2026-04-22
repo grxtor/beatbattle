@@ -21,7 +21,7 @@ export async function POST(
     return NextResponse.json({ error: "unauth" }, { status: 401 });
   }
 
-  const limit = rateLimit(`join:${session.user.id}`, RATE_LIMITS.roomJoin);
+  const limit = await rateLimit(`join:${session.user.id}`, RATE_LIMITS.roomJoin);
   if (!limit.ok) return tooManyRequests(limit.retryAfter);
 
   const { code: rawCode } = await ctx.params;

@@ -35,7 +35,7 @@ export async function DELETE(request: Request) {
   }
   const me = session.user.id;
 
-  const rl = rateLimit(`del:${me}`, RATE_LIMITS.accountDelete);
+  const rl = await rateLimit(`del:${me}`, RATE_LIMITS.accountDelete);
   if (!rl.ok) return tooManyRequests(rl.retryAfter);
 
   const body = await request.json().catch(() => null);

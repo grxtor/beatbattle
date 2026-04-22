@@ -17,7 +17,7 @@ export async function POST() {
     return NextResponse.json({ error: "unauth" }, { status: 401 });
   }
 
-  const limit = rateLimit(`quick:${session.user.id}`, RATE_LIMITS.quickMatch);
+  const limit = await rateLimit(`quick:${session.user.id}`, RATE_LIMITS.quickMatch);
   if (!limit.ok) return tooManyRequests(limit.retryAfter);
 
   const candidates = await prisma.room.findMany({

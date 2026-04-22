@@ -21,7 +21,7 @@ export async function POST(
     return NextResponse.json({ error: "unauth" }, { status: 401 });
   }
 
-  const limit = rateLimit(`buy:${session.user.id}`, RATE_LIMITS.shopBuy);
+  const limit = await rateLimit(`buy:${session.user.id}`, RATE_LIMITS.shopBuy);
   if (!limit.ok) return tooManyRequests(limit.retryAfter);
 
   const { id: idRaw } = await ctx.params;

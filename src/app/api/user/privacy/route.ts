@@ -15,7 +15,7 @@ export async function PATCH(request: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauth" }, { status: 401 });
   }
-  const rl = rateLimit(`userwrite:${session.user.id}`, RATE_LIMITS.profileWrite);
+  const rl = await rateLimit(`userwrite:${session.user.id}`, RATE_LIMITS.profileWrite);
   if (!rl.ok) return tooManyRequests(rl.retryAfter);
 
   const body = await request.json().catch(() => null);

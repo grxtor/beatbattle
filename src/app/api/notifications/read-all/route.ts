@@ -8,7 +8,7 @@ export async function POST() {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauth" }, { status: 401 });
   }
-  const rl = rateLimit(`notif:${session.user.id}`, RATE_LIMITS.notificationRead);
+  const rl = await rateLimit(`notif:${session.user.id}`, RATE_LIMITS.notificationRead);
   if (!rl.ok) return tooManyRequests(rl.retryAfter);
 
   const result = await prisma.notification.updateMany({

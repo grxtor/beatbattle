@@ -26,7 +26,7 @@ export async function POST(
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauth" }, { status: 401 });
   }
-  const rl = rateLimit(`vote:${session.user.id}`, RATE_LIMITS.voteCast);
+  const rl = await rateLimit(`vote:${session.user.id}`, RATE_LIMITS.voteCast);
   if (!rl.ok) return tooManyRequests(rl.retryAfter);
 
   const parsed = schema.safeParse(await req.json().catch(() => null));

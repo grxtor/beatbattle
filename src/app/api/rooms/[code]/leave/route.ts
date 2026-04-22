@@ -16,7 +16,7 @@ export async function POST(
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauth" }, { status: 401 });
   }
-  const rl = rateLimit(`roommut:${session.user.id}`, RATE_LIMITS.roomMutation);
+  const rl = await rateLimit(`roommut:${session.user.id}`, RATE_LIMITS.roomMutation);
   if (!rl.ok) return tooManyRequests(rl.retryAfter);
 
   const { code: rawCode } = await ctx.params;

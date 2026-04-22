@@ -12,7 +12,7 @@ export async function DELETE(
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauth" }, { status: 401 });
   }
-  const rl = rateLimit(`frmut:${session.user.id}`, RATE_LIMITS.friendshipWrite);
+  const rl = await rateLimit(`frmut:${session.user.id}`, RATE_LIMITS.friendshipWrite);
   if (!rl.ok) return tooManyRequests(rl.retryAfter);
 
   const { id } = await ctx.params;

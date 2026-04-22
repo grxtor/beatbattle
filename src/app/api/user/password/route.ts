@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "unauth" }, { status: 401 });
   }
 
-  const rl = rateLimit(`pw:${session.user.id}`, RATE_LIMITS.passwordChange);
+  const rl = await rateLimit(`pw:${session.user.id}`, RATE_LIMITS.passwordChange);
   if (!rl.ok) return tooManyRequests(rl.retryAfter);
 
   const body = await request.json().catch(() => null);

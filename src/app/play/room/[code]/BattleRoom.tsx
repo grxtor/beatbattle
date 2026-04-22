@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Sketch from "@/components/Sketch";
 import { useToast } from "@/components/Toast";
+import RoomChat from "./RoomChat";
+import TrackPlayer from "./TrackPlayer";
 import styles from "./page.module.css";
 
 type Phase = "LOBBY" | "REVEAL" | "PRODUCTION" | "UPLOAD" | "VOTING" | "RESULTS" | "CANCELLED";
@@ -182,9 +184,87 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
     await load();
   };
 
-  const submitTrack = async () => {
-    await fetch(`/api/rooms/${code}/submit`, { method: "POST" });
-    await load();
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadPct, setUploadPct] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const MAX_UPLOAD_BYTES = 30 * 1024 * 1024;
+  const ACCEPTED_MIMES = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/ogg"];
+
+  const pickFile = () => {
+    if (uploadBusy || me?.submitted) return;
+    fileInputRef.current?.click();
+  };
+
+  const uploadTrack = useCallback(
+    async (file: File) => {
+      if (file.size === 0) {
+        toast.error("Empty file");
+        return;
+      }
+      if (file.size > MAX_UPLOAD_BYTES) {
+        toast.error(`File too large (max 30 MB)`);
+        return;
+      }
+      const isAccepted =
+        ACCEPTED_MIMES.includes(file.type) ||
+        /\.(mp3|wav|ogg)$/i.test(file.name);
+      if (!isAccepted) {
+        toast.error("Use mp3, wav, or ogg");
+        return;
+      }
+      setUploadBusy(true);
+      setUploadPct(0);
+      try {
+        const form = new FormData();
+        form.append("file", file);
+
+        // XHR so we can surface upload progress; fetch streams aren't widely
+        // supported yet.
+        const pct = await new Promise<number>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", `/api/rooms/${code}/track`);
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              setUploadPct(Math.round((e.loaded / e.total) * 100));
+            }
+          };
+          xhr.onload = () => {
+            let body: { error?: string } = {};
+            try { body = JSON.parse(xhr.responseText); } catch { /* ignore */ }
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(100);
+            } else {
+              reject(new Error(body.error ?? `HTTP ${xhr.status}`));
+            }
+          };
+          xhr.onerror = () => reject(new Error("network error"));
+          xhr.send(form);
+        });
+        setUploadPct(pct);
+        toast.success("Track uploaded");
+        await load();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "upload failed");
+      } finally {
+        setUploadBusy(false);
+        setUploadPct(0);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    },
+    [code, load, toast, me?.submitted],
+  );
+
+  const onFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) void uploadTrack(f);
+  };
+
+  const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (uploadBusy || me?.submitted) return;
+    const f = e.dataTransfer.files?.[0];
+    if (f) void uploadTrack(f);
   };
 
   const castVote = async (
@@ -391,11 +471,22 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
             </p>
             <button
               className={styles.uploadCta}
-              disabled={me.submitted}
-              onClick={submitTrack}
+              disabled={me.submitted || uploadBusy}
+              onClick={pickFile}
             >
-              {me.submitted ? "✓ SUBMITTED" : "UPLOAD TRACK →"}
+              {me.submitted
+                ? "✓ SUBMITTED"
+                : uploadBusy
+                ? `UPLOADING… ${uploadPct}%`
+                : "UPLOAD TRACK →"}
             </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/ogg,.mp3,.wav,.ogg"
+              onChange={onFileSelected}
+              hidden
+            />
           </Sketch>
 
           <Sketch variant={2} className={styles.prodSide}>
@@ -425,17 +516,39 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
           <h2 className={styles.phaseTitle}>DROP YOUR <span>TRACK</span></h2>
           <div className={styles.bigTimer}>{fmtCountdown(countdown ?? 0)}</div>
 
-          <Sketch variant={2} as="div" className={`${styles.dropzone} ${me.submitted ? styles.done : ""}`} onClick={submitTrack}>
+          <Sketch
+            variant={2}
+            as="div"
+            className={`${styles.dropzone} ${me.submitted ? styles.done : ""}`}
+            onClick={pickFile}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={onDrop}
+          >
             <div className={`${styles.dropIcon} ${me.submitted ? styles.done : ""}`}>
-              {me.submitted ? "✓" : "↑"}
+              {me.submitted ? "✓" : uploadBusy ? "…" : "↑"}
             </div>
             <span className={`${styles.dropText} ${me.submitted ? styles.ok : ""}`}>
-              {me.submitted ? "TRACK SUBMITTED" : "CLICK TO SUBMIT"}
+              {me.submitted
+                ? "TRACK SUBMITTED"
+                : uploadBusy
+                ? `UPLOADING ${uploadPct}%`
+                : "DROP OR CLICK TO UPLOAD"}
             </span>
             <span className={styles.dropHint}>
-              {me.submitted ? "Waiting for other producers to finish." : "MVP: no audio upload yet — click to submit."}
+              {me.submitted
+                ? "Waiting for other producers to finish."
+                : "mp3 / wav / ogg · max 30 MB"}
             </span>
           </Sketch>
+          {!me.submitted && (
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/ogg,.mp3,.wav,.ogg"
+              onChange={onFileSelected}
+              hidden
+            />
+          )}
 
           <div className={styles.uploadStats}>
             <Sketch variant={1} className={styles.uStat}>
@@ -484,8 +597,11 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
               <span className={styles.trackTag}>TRACK {currentVoteTrack.anonymousLabel}</span>
               <span className={styles.trackAnon}>Anonymous · reveal after voting</span>
             </div>
-            <div className={styles.bigWaveform} />
-            <button className={styles.trackPlay}>▸ PLAY TRACK</button>
+            <TrackPlayer
+              src={currentVoteTrack.audioUrl}
+              label={currentVoteTrack.anonymousLabel}
+              resetKey={currentVoteTrack.id}
+            />
 
             <div className={styles.voteGrid}>
               {VOTE_OPTIONS.map((v) => {
@@ -627,6 +743,10 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
           <h2>ROOM CANCELLED</h2>
           <Link href="/">← BACK HOME</Link>
         </div>
+      )}
+
+      {me.inRoom && phase !== "CANCELLED" && (
+        <RoomChat code={code} meId={me.id} />
       )}
     </div>
   );

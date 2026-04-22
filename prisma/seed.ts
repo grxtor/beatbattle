@@ -11,6 +11,17 @@ import bcrypt from "bcryptjs";
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
+const MEDIA_PUBLIC_BASE = process.env.MEDIA_PUBLIC_BASE ?? "/media";
+
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .trim()
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 // Dev convenience: each user's password equals their username.
 // producer / producer, beatsmith / beatsmith, etc.
 async function hashFor(username: string) {
@@ -283,12 +294,18 @@ async function main() {
     // Replace the sample list for this pack every run (cheap, idempotent).
     await prisma.sample.deleteMany({ where: { packId: pack.id } });
     if (p.sampleNames.length) {
+      const packSlug = slugify(p.name);
       await prisma.sample.createMany({
         data: p.sampleNames.map((name, idx) => ({
           packId: pack.id,
           name,
           duration: `0:0${2 + (idx % 8)}`,
           orderIdx: idx,
+          // Points at <MEDIA_ROOT>/samples/<packSlug>/<sampleSlug>.mp3.
+          // Preview buttons go live as soon as the server has the matching
+          // file on disk; until then the browser gets a 404 and we fall back
+          // to the "preview unavailable" state.
+          audioUrl: `${MEDIA_PUBLIC_BASE}/samples/${packSlug}/${slugify(name)}.mp3`,
         })),
       });
     }

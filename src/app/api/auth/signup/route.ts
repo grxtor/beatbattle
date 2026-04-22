@@ -26,7 +26,7 @@ function initialsOf(username: string) {
 
 export async function POST(request: Request) {
   const ip = clientIpFrom(request.headers);
-  const limit = rateLimit(`signup:${ip}`, RATE_LIMITS.signup);
+  const limit = await rateLimit(`signup:${ip}`, RATE_LIMITS.signup);
   if (!limit.ok) return tooManyRequests(limit.retryAfter);
 
   let body: unknown;

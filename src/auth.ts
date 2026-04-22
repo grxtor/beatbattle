@@ -38,7 +38,7 @@ const providers: NextAuthConfig["providers"] = [
 
       // Rate-limit by IP + username so one abuser can't hammer every account.
       const ip = clientIpFrom(request?.headers ?? new Headers());
-      const limit = rateLimit(`login:${ip}:${u}`, RATE_LIMITS.loginAttempt);
+      const limit = await rateLimit(`login:${ip}:${u}`, RATE_LIMITS.loginAttempt);
       if (!limit.ok) return null;
 
       const user = await prisma.user.findUnique({

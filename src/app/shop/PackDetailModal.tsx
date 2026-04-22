@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Modal from "@/components/Modal";
+import { useAudioMute } from "@/components/AudioMute";
 import styles from "./page.module.css";
 
 type Sample = { id: string; name: string; duration: string; audioUrl: string | null };
@@ -49,6 +50,43 @@ export default function PackDetailModal({
   const [data, setData] = useState<PackDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [unavailable, setUnavailable] = useState<Set<string>>(new Set());
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { muted } = useAudioMute();
+
+  // Stop playback whenever the modal closes so audio doesn't keep going in
+  // the background after the user dismisses the dialog.
+  useEffect(() => {
+    if (!open && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      setPlayingId(null);
+    }
+  }, [open]);
+
+  const playSample = useCallback(
+    (sample: Sample) => {
+      if (!sample.audioUrl || unavailable.has(sample.id)) return;
+      const audio = audioRef.current;
+      if (!audio) return;
+      if (playingId === sample.id) {
+        audio.pause();
+        setPlayingId(null);
+        return;
+      }
+      audio.src = sample.audioUrl;
+      audio.muted = muted;
+      audio.currentTime = 0;
+      audio
+        .play()
+        .then(() => setPlayingId(sample.id))
+        .catch(() => {
+          setUnavailable((s) => new Set(s).add(sample.id));
+          setPlayingId(null);
+        });
+    },
+    [muted, playingId, unavailable],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -93,21 +131,31 @@ export default function PackDetailModal({
             {pack.sampleList.length === 0 && (
               <div className={styles.modalLoading}>NO SAMPLES LISTED</div>
             )}
-            {pack.sampleList.map((s) => (
-              <div key={s.id} className={styles.modalSampleRow}>
-                <button
-                  type="button"
-                  className={styles.modalSamplePlay}
-                  onClick={() => setPlayingId(playingId === s.id ? null : s.id)}
-                  title={s.audioUrl ? "play" : "no audio yet"}
-                  disabled={!s.audioUrl}
-                >
-                  {playingId === s.id ? "■" : "▸"}
-                </button>
-                <span className={styles.modalSampleName}>{s.name}</span>
-                <span className={styles.modalSampleDur}>{s.duration}</span>
-              </div>
-            ))}
+            {pack.sampleList.map((s) => {
+              const broken = unavailable.has(s.id);
+              const disabled = !s.audioUrl || broken;
+              return (
+                <div key={s.id} className={styles.modalSampleRow}>
+                  <button
+                    type="button"
+                    className={styles.modalSamplePlay}
+                    onClick={() => playSample(s)}
+                    title={
+                      broken
+                        ? "preview unavailable"
+                        : s.audioUrl
+                        ? "play preview"
+                        : "no audio yet"
+                    }
+                    disabled={disabled}
+                  >
+                    {playingId === s.id ? "■" : "▸"}
+                  </button>
+                  <span className={styles.modalSampleName}>{s.name}</span>
+                  <span className={styles.modalSampleDur}>{s.duration}</span>
+                </div>
+              );
+            })}
           </div>
 
           <div className={styles.modalFoot}>
@@ -134,6 +182,11 @@ export default function PackDetailModal({
       ) : (
         <div className={styles.modalLoading}>NOT FOUND</div>
       )}
+      <audio
+        ref={audioRef}
+        preload="none"
+        onEnded={() => setPlayingId(null)}
+      />
     </Modal>
   );
 }

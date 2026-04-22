@@ -102,6 +102,7 @@ model User {
   battleResults       BattleResult[]
   badges              UserBadge[]
   accounts            Account[]
+  roomMessages        RoomMessage[]
 
   @@index([xp(sort: Desc)])
   @@index([online])
@@ -165,13 +166,28 @@ model Room {
   startedAt    DateTime?
   endedAt      DateTime?
 
-  host    User           @relation("hostedRooms", fields: [hostId], references: [id])
-  players RoomPlayer[]
-  tracks  Track[]
-  results BattleResult[]
+  host     User           @relation("hostedRooms", fields: [hostId], references: [id])
+  players  RoomPlayer[]
+  tracks   Track[]
+  results  BattleResult[]
+  messages RoomMessage[]
 
   @@index([phase, privacy])
   @@index([hostId])
+}
+
+model RoomMessage {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String
+  body      String   @db.VarChar(2000)
+  createdAt DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
+  @@index([userId])
 }
 
 model RoomPlayer {

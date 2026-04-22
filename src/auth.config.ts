@@ -4,7 +4,7 @@ import type { NextAuthConfig } from "next-auth";
 // Full config (credentials provider + Prisma lookup) ./auth.ts'de extend edilir.
 
 const PUBLIC_PATHS = ["/login", "/signup"];
-const PUBLIC_PREFIXES = ["/api/auth", "/_next", "/favicon"];
+const PUBLIC_PREFIXES = ["/api/auth", "/_next", "/favicon", "/media"];
 
 export default {
   providers: [],

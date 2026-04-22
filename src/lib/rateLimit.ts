@@ -1,23 +1,19 @@
 import "server-only";
+import { getRedis } from "./redis";
 
 /**
- * In-process sliding-window rate limiter.
+ * Sliding-window rate limiter.
  *
- * Good enough for a single Node server (dev + small prod). When this app
- * starts running on multiple instances (multiple pods, edge runtime, …)
- * swap this for a Redis-backed implementation behind the same interface.
+ * When `REDIS_URL` is configured we use a single-shot Lua script so
+ * concurrent callers serialize atomically against the same window. If Redis
+ * is unavailable (dev without it, or during a transient outage) we fall back
+ * to an in-process Map — good enough for a single Node server and zero-config
+ * local development.
  *
  * Usage:
- *   const { ok, retryAfter } = rateLimit(`signup:${ip}`, { max: 5, windowMs: 10 * 60_000 });
- *   if (!ok) return tooMany(retryAfter);
+ *   const { ok, retryAfter } = await rateLimit(`signup:${ip}`, RATE_LIMITS.signup);
+ *   if (!ok) return tooManyRequests(retryAfter);
  */
-
-type Bucket = {
-  timestamps: number[];
-};
-
-const buckets = new Map<string, Bucket>();
-const MAX_BUCKETS = 10_000;
 
 export type RateLimitConfig = {
   max: number;
@@ -32,7 +28,13 @@ export type RateLimitResult = {
   remaining: number;
 };
 
-export function rateLimit(key: string, cfg: RateLimitConfig): RateLimitResult {
+// ---------- In-memory fallback ----------
+
+type Bucket = { timestamps: number[] };
+const buckets = new Map<string, Bucket>();
+const MAX_BUCKETS = 10_000;
+
+function memoryRateLimit(key: string, cfg: RateLimitConfig): RateLimitResult {
   const now = Date.now();
   const windowStart = now - cfg.windowMs;
   const bucket = buckets.get(key);
@@ -48,7 +50,7 @@ export function rateLimit(key: string, cfg: RateLimitConfig): RateLimitResult {
   timestamps.push(now);
   buckets.set(key, { timestamps });
 
-  if (buckets.size > MAX_BUCKETS) sweep(windowStart);
+  if (buckets.size > MAX_BUCKETS) memorySweep(windowStart);
 
   return {
     ok: true,
@@ -57,12 +59,89 @@ export function rateLimit(key: string, cfg: RateLimitConfig): RateLimitResult {
   };
 }
 
-function sweep(windowStart: number): void {
+function memorySweep(windowStart: number): void {
   for (const [k, b] of buckets) {
     const fresh = b.timestamps.filter((t) => t > windowStart);
     if (fresh.length === 0) buckets.delete(k);
     else b.timestamps = fresh;
   }
+}
+
+// ---------- Redis sliding window (atomic Lua script) ----------
+
+/**
+ * ZADD a timestamp, trim the window, then ZCARD to count. All atomic so
+ * two parallel callers can't both sneak past the limit.
+ * KEYS[1] = bucket key
+ * ARGV[1] = now (ms), ARGV[2] = windowStart (ms), ARGV[3] = max, ARGV[4] = ttlSec
+ * Returns { allowed (0|1), count, oldestMs }.
+ */
+const RATE_LIMIT_SCRIPT = `
+local key = KEYS[1]
+local now = tonumber(ARGV[1])
+local windowStart = tonumber(ARGV[2])
+local max = tonumber(ARGV[3])
+local ttl = tonumber(ARGV[4])
+
+redis.call('ZREMRANGEBYSCORE', key, '-inf', windowStart)
+local count = redis.call('ZCARD', key)
+if count >= max then
+  local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
+  local oldestMs = tonumber(oldest[2]) or now
+  return {0, count, oldestMs}
+end
+redis.call('ZADD', key, now, now .. '-' .. math.random(0, 1000000))
+redis.call('EXPIRE', key, ttl)
+return {1, count + 1, now}
+`.trim();
+
+async function redisRateLimit(key: string, cfg: RateLimitConfig): Promise<RateLimitResult | null> {
+  const client = getRedis();
+  if (!client || client.status !== "ready") return null;
+
+  const now = Date.now();
+  const windowStart = now - cfg.windowMs;
+  const ttlSec = Math.max(1, Math.ceil(cfg.windowMs / 1000) + 1);
+
+  try {
+    const res = (await client.eval(
+      RATE_LIMIT_SCRIPT,
+      1,
+      `rl:${key}`,
+      String(now),
+      String(windowStart),
+      String(cfg.max),
+      String(ttlSec),
+    )) as [number, number, number];
+    const [allowed, count, oldestMs] = res;
+
+    if (allowed === 0) {
+      const retryAfter = Math.max(
+        1,
+        Math.ceil((oldestMs + cfg.windowMs - now) / 1000),
+      );
+      return { ok: false, retryAfter, remaining: 0 };
+    }
+    return {
+      ok: true,
+      retryAfter: 0,
+      remaining: Math.max(0, cfg.max - count),
+    };
+  } catch (err) {
+    console.error("[rateLimit] redis failed, falling back to memory", err);
+    return null;
+  }
+}
+
+// ---------- Public API ----------
+
+export async function rateLimit(
+  key: string,
+  cfg: RateLimitConfig,
+): Promise<RateLimitResult> {
+  const redisResult = await redisRateLimit(key, cfg);
+  if (redisResult) return redisResult;
+  return memoryRateLimit(key, cfg);
 }
 
 /** Pull a best-effort client IP from typical proxy headers. */
@@ -92,20 +171,22 @@ export function tooManyRequests(retryAfter: number, body: Record<string, unknown
 
 /** Commonly-used presets, grouped in one place so policy lives together. */
 export const RATE_LIMITS = {
-  signup: { max: 5, windowMs: 10 * 60_000 }, // 5 per 10 min per IP
-  loginAttempt: { max: 10, windowMs: 10 * 60_000 }, // 10 per 10 min per IP+username
-  friendRequest: { max: 20, windowMs: 10 * 60_000 }, // 20 per 10 min per user
-  roomJoin: { max: 30, windowMs: 60_000 }, // 30 per min per user
-  quickMatch: { max: 15, windowMs: 60_000 }, // 15 per min per user
-  shopBuy: { max: 10, windowMs: 60_000 }, // 10 per min per user
-  presence: { max: 4, windowMs: 60_000 }, // client pings every 30s → allow 4
-  roomInvite: { max: 15, windowMs: 10 * 60_000 }, // 15 per 10 min per inviter
-  voteCast: { max: 30, windowMs: 60_000 }, // 30 per min per voter (covers re-votes)
-  submitTrack: { max: 10, windowMs: 60_000 }, // 10 per min per user
-  roomMutation: { max: 60, windowMs: 60_000 }, // leave/ready/start — generous, just spam guard
-  friendshipWrite: { max: 60, windowMs: 10 * 60_000 }, // accept/decline/unfriend
-  notificationRead: { max: 120, windowMs: 60_000 }, // clicking to read
-  profileWrite: { max: 30, windowMs: 10 * 60_000 }, // settings updates
-  passwordChange: { max: 5, windowMs: 10 * 60_000 }, // stricter — security-sensitive
-  accountDelete: { max: 3, windowMs: 60 * 60_000 }, // 3 per hour — accident guard
+  signup: { max: 5, windowMs: 10 * 60_000 },
+  loginAttempt: { max: 10, windowMs: 10 * 60_000 },
+  friendRequest: { max: 20, windowMs: 10 * 60_000 },
+  roomJoin: { max: 30, windowMs: 60_000 },
+  quickMatch: { max: 15, windowMs: 60_000 },
+  shopBuy: { max: 10, windowMs: 60_000 },
+  presence: { max: 4, windowMs: 60_000 },
+  roomInvite: { max: 15, windowMs: 10 * 60_000 },
+  voteCast: { max: 30, windowMs: 60_000 },
+  submitTrack: { max: 10, windowMs: 60_000 },
+  roomMutation: { max: 60, windowMs: 60_000 },
+  friendshipWrite: { max: 60, windowMs: 10 * 60_000 },
+  notificationRead: { max: 120, windowMs: 60_000 },
+  profileWrite: { max: 30, windowMs: 10 * 60_000 },
+  passwordChange: { max: 5, windowMs: 10 * 60_000 },
+  accountDelete: { max: 3, windowMs: 60 * 60_000 },
+  chatSend: { max: 15, windowMs: 10_000 },
+  trackUpload: { max: 6, windowMs: 60_000 },
 } as const satisfies Record<string, RateLimitConfig>;

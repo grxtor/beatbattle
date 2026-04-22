@@ -33,7 +33,7 @@ export async function POST(
   }
   const me = session.user.id;
 
-  const limit = rateLimit(`roominvite:${me}`, RATE_LIMITS.roomInvite);
+  const limit = await rateLimit(`roominvite:${me}`, RATE_LIMITS.roomInvite);
   if (!limit.ok) return tooManyRequests(limit.retryAfter);
 
   const { code } = await context.params;

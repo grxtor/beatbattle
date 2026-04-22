@@ -15,7 +15,7 @@ export async function POST(
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauth" }, { status: 401 });
   }
-  const rl = rateLimit(`submit:${session.user.id}`, RATE_LIMITS.submitTrack);
+  const rl = await rateLimit(`submit:${session.user.id}`, RATE_LIMITS.submitTrack);
   if (!rl.ok) return tooManyRequests(rl.retryAfter);
 
   const { code: rawCode } = await ctx.params;

@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "unauth" }, { status: 401 });
   }
 
-  const limit = rateLimit(`friendreq:${session.user.id}`, RATE_LIMITS.friendRequest);
+  const limit = await rateLimit(`friendreq:${session.user.id}`, RATE_LIMITS.friendRequest);
   if (!limit.ok) return tooManyRequests(limit.retryAfter);
 
   const body = await request.json().catch(() => null);

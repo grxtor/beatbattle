@@ -17,7 +17,7 @@ export async function POST() {
     return NextResponse.json({ error: "unauth" }, { status: 401 });
   }
 
-  const limit = rateLimit(`presence:${session.user.id}`, RATE_LIMITS.presence);
+  const limit = await rateLimit(`presence:${session.user.id}`, RATE_LIMITS.presence);
   if (!limit.ok) return tooManyRequests(limit.retryAfter);
 
   await prisma.user.update({
