@@ -1,4 +1,5 @@
 import path from "node:path";
+import fs from "node:fs";
 import dotenv from "dotenv";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
@@ -11,7 +12,9 @@ import bcrypt from "bcryptjs";
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
+const MEDIA_ROOT = path.resolve(process.env.MEDIA_ROOT ?? "./media");
 const MEDIA_PUBLIC_BASE = process.env.MEDIA_PUBLIC_BASE ?? "/media";
+const AUDIO_EXTS = new Set([".mp3", ".wav", ".ogg"]);
 
 function slugify(s: string): string {
   return s
@@ -20,6 +23,79 @@ function slugify(s: string): string {
     .replace(/['"]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+/**
+ * Turn a raw filename like `DILIP_clap_undercover.wav` into a display name
+ * like "DILIP CLAP UNDERCOVER" — just strip ext, uppercase, collapse
+ * separators. Crude but consistent.
+ */
+function prettifySampleName(filename: string): string {
+  const base = filename.replace(/\.[^.]+$/, "");
+  return base
+    .replace(/[_\-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase()
+    .slice(0, 80);
+}
+
+/**
+ * Pack naming + metadata for each library directory we know about. Unknown
+ * dirs fall through to a generic "SAMPLES — <DIR>" pack so the seed keeps
+ * working as new categories land on disk.
+ */
+const LIBRARY_PACK_META: Record<
+  string,
+  { name: string; genre: RoomGenre; price: number; icon: string; description: string }
+> = {
+  "808s":       { name: "808 LAB",    genre: "TRAP",   price: 800,  icon: "◎", description: "Thirty-plus 808s — clean subs, distorted, glides, movement." },
+  "claps":      { name: "CLAP LAB",   genre: "TRAP",   price: 500,  icon: "✦", description: "Hand-curated claps from DILIP, OLS, and boutique packs." },
+  "kicks":      { name: "KICK LAB",   genre: "TRAP",   price: 600,  icon: "▲", description: "Producer-grade kicks — tight, punchy, modern." },
+  "snares":     { name: "SNARE LAB",  genre: "HIPHOP", price: 600,  icon: "◈", description: "Layered snares and claps perfect for boom-bap or trap." },
+  "percussion": { name: "PERC LAB",   genre: "HIPHOP", price: 700,  icon: "♫", description: "World-perc one-shots: bongos, congas, wood, shakers." },
+  "fx":         { name: "FX LAB",     genre: "FX",     price: 700,  icon: "◬", description: "Risers, impacts, sirens, scene changes, atmospheres." },
+};
+
+type LibraryPackEntry = {
+  dirSlug: string;
+  files: string[];
+  meta: (typeof LIBRARY_PACK_META)[string] | null;
+};
+
+/**
+ * Scan MEDIA_ROOT/samples/<dir>/ for anything playable. Returns one entry
+ * per directory with audio files in it, so new categories dropped on disk
+ * automatically show up after a re-seed.
+ *
+ * Directory names are matched against LIBRARY_PACK_META in a forgiving way
+ * (lowercase + slug), so `Claps Ab`, `claps`, `CLAPS` all resolve to the
+ * same pack. Unknown dirs still get a pack, just with a generic title.
+ */
+function scanLibrary(): LibraryPackEntry[] {
+  const samplesDir = path.join(MEDIA_ROOT, "samples");
+  if (!fs.existsSync(samplesDir)) return [];
+
+  const entries: LibraryPackEntry[] = [];
+  for (const dirent of fs.readdirSync(samplesDir, { withFileTypes: true })) {
+    if (!dirent.isDirectory()) continue;
+    const dir = path.join(samplesDir, dirent.name);
+    const files = fs
+      .readdirSync(dir, { withFileTypes: true })
+      .filter((f) => f.isFile() && AUDIO_EXTS.has(path.extname(f.name).toLowerCase()))
+      .map((f) => f.name)
+      .sort();
+    if (files.length === 0) continue;
+
+    const keyTry = slugify(dirent.name);
+    const meta =
+      LIBRARY_PACK_META[keyTry] ??
+      LIBRARY_PACK_META[keyTry.replace(/-.*$/, "")] ?? // "claps-ab" → "claps"
+      null;
+
+    entries.push({ dirSlug: dirent.name, files, meta });
+  }
+  return entries;
 }
 
 // Dev convenience: each user's password equals their username.
@@ -292,23 +368,68 @@ async function main() {
     });
 
     // Replace the sample list for this pack every run (cheap, idempotent).
+    // Mixed packs use seed-authored fantasy names that don't match any
+    // library file on disk — so audioUrl stays null. The shop modal greys
+    // out the preview button automatically for null-URL samples.
     await prisma.sample.deleteMany({ where: { packId: pack.id } });
     if (p.sampleNames.length) {
-      const packSlug = slugify(p.name);
       await prisma.sample.createMany({
         data: p.sampleNames.map((name, idx) => ({
           packId: pack.id,
           name,
           duration: `0:0${2 + (idx % 8)}`,
           orderIdx: idx,
-          // Points at <MEDIA_ROOT>/samples/<packSlug>/<sampleSlug>.mp3.
-          // Preview buttons go live as soon as the server has the matching
-          // file on disk; until then the browser gets a 404 and we fall back
-          // to the "preview unavailable" state.
-          audioUrl: `${MEDIA_PUBLIC_BASE}/samples/${packSlug}/${slugify(name)}.mp3`,
+          audioUrl: null,
         })),
       });
     }
+  }
+
+  // ---- Library-derived packs ----
+  // Whatever's on disk under MEDIA_ROOT/samples/<dir>/ becomes a pack. This
+  // runs after the fixed catalog so the library always stays in sync with
+  // the real files — re-seeding when new categories arrive works without
+  // any seed edits.
+  console.log("[seed] library packs from MEDIA_ROOT=", MEDIA_ROOT);
+  const libEntries = scanLibrary();
+  if (libEntries.length === 0) {
+    console.log("[seed] no library directories found — skipping library packs");
+  }
+
+  for (const entry of libEntries) {
+    const fallbackName = `SAMPLES — ${entry.dirSlug.toUpperCase()}`;
+    const name = entry.meta?.name ?? fallbackName;
+    const genre: RoomGenre = entry.meta?.genre ?? "RANDOM";
+    const price = entry.meta?.price ?? 500;
+    const icon = entry.meta?.icon ?? "◆";
+    const description =
+      entry.meta?.description ??
+      `Auto-imported library pack from /samples/${entry.dirSlug} — ${entry.files.length} samples.`;
+
+    const pack = await prisma.shopPack.upsert({
+      where: { name },
+      update: {
+        genre, samples: entry.files.length, price, icon,
+        isNew: true, unlockLvl: null, description,
+      },
+      create: {
+        name, genre, samples: entry.files.length, price, icon,
+        isNew: true, unlockLvl: null, description,
+      },
+    });
+
+    await prisma.sample.deleteMany({ where: { packId: pack.id } });
+    await prisma.sample.createMany({
+      data: entry.files.map((filename, idx) => ({
+        packId: pack.id,
+        name: prettifySampleName(filename),
+        duration: "0:0?",
+        orderIdx: idx,
+        // URL-encode the dir + filename so spaces / accented chars survive.
+        audioUrl: `${MEDIA_PUBLIC_BASE}/samples/${encodeURIComponent(entry.dirSlug)}/${encodeURIComponent(filename)}`,
+      })),
+    });
+    console.log(`[seed]   → ${name}: ${entry.files.length} samples`);
   }
 
   // give the "me" user the free pack

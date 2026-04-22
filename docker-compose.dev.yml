@@ -1,0 +1,64 @@
+# Self-contained dev compose — bundles Postgres + Redis so you can spin up
+# the full stack with one command and zero host prerequisites.
+#
+#   docker compose -f docker-compose.dev.yml up --build
+#
+# Data persists under named volumes; `docker compose -f docker-compose.dev.yml down -v`
+# nukes them if you want a clean slate.
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: beatbattle-pg-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: beatbattle
+      POSTGRES_PASSWORD: beatbattle
+      POSTGRES_DB: beatbattle
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U beatbattle -d beatbattle"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: beatbattle-redis-dev
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: beatbattle:dev
+    container_name: beatbattle-app-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://beatbattle:beatbattle@postgres:5432/beatbattle
+      AUTH_SECRET: dev-auth-secret-change-me-at-least-32-chars-long
+      REDIS_URL: redis://redis:6379
+      MEDIA_ROOT: /media
+      MEDIA_PUBLIC_BASE: /media
+      SEED_ON_BOOT: "1"
+    ports:
+      - "3000:3000"
+    volumes:
+      - media-data:/media
+
+volumes:
+  pg-data:
+  redis-data:
+  media-data:

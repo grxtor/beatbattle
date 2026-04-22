@@ -1,0 +1,38 @@
+# Production compose — expects external Postgres + Redis already running on
+# the host (that's how the Debian server is configured). Mounts the host
+# media dir so uploaded tracks survive container rebuilds.
+#
+# Typical deploy:
+#   cp .env.example .env && vim .env        # fill in DATABASE_URL, AUTH_SECRET, REDIS_URL
+#   docker compose build
+#   docker compose up -d
+#   docker compose logs -f app
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: beatbattle:latest
+    container_name: beatbattle
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Override env-file defaults for the container's perspective.
+      NODE_ENV: production
+      MEDIA_ROOT: /media
+      MEDIA_PUBLIC_BASE: /media
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - /var/lib/beatbattle/media:/media
+    # Use host networking for reaching Postgres/Redis already on 127.0.0.1
+    # on the host; drop this if services live on another box.
+    # network_mode: host
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/login"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

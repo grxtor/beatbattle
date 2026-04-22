@@ -38,10 +38,50 @@ Dev login shortcuts (from seed) — each user's password equals their username:
 
 ---
 
-## Self-hosted deploy (Debian 12)
+## Docker
+
+Easiest path to a running server.
+
+```bash
+cp .env.example .env         # fill in DATABASE_URL, AUTH_SECRET, REDIS_URL
+docker compose build
+docker compose up -d
+docker compose logs -f app
+```
+
+The image is based on Next.js standalone output — ~200 MB instead of
+~1.5 GB if we shipped node_modules whole. Prisma engines + schema are
+bundled so `migrate deploy` runs automatically at container boot
+(skip with `SKIP_MIGRATE=1`). Seed runs when `SEED_ON_BOOT=1` is set —
+flip it on once after dropping new sample library files on disk so the
+DB picks them up.
+
+Production compose (`docker-compose.yml`) expects external Postgres +
+Redis — both already running on the Debian server. The media directory
+is bind-mounted from the host at `/var/lib/beatbattle/media` so uploads
+survive rebuilds.
+
+Self-contained dev stack (bundles Postgres + Redis):
+
+```bash
+docker compose -f docker-compose.dev.yml up --build
+# app on http://localhost:3000 with throwaway DB + Redis
+```
+
+Rebuild after changes:
+
+```bash
+docker compose build --no-cache app
+docker compose up -d app
+```
+
+---
+
+## Self-hosted deploy (Debian 12, bare metal)
 
 The app ships as a plain Node process. Reverse-proxy via nginx, supervise
-with systemd (or pm2).
+with systemd (or pm2). If you're running Docker, skip this whole section —
+`docker compose up -d` is the equivalent.
 
 ### 1. Node + pnpm
 
