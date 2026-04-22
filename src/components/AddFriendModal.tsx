@@ -11,8 +11,6 @@ type Suggestion = {
   level: number;
 };
 
-const INVITE_URL = "beatbattle.gg/i/PRODUCER-7AX9";
-
 export type AddFriendModalProps = {
   open: boolean;
   onClose: () => void;
@@ -26,6 +24,9 @@ export default function AddFriendModal({ open, onClose }: AddFriendModalProps) {
   const [sent, setSent] = useState<Record<string, "ok" | "err">>({});
   const [searchMsg, setSearchMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const inviteUrl =
+    typeof window !== "undefined" ? `${window.location.origin}/signup` : "/signup";
 
   const loadSuggestions = useCallback(async () => {
     try {
@@ -81,7 +82,7 @@ export default function AddFriendModal({ open, onClose }: AddFriendModalProps) {
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(`https://${INVITE_URL}`);
+      await navigator.clipboard.writeText(inviteUrl);
       setCopied(true);
       toast.success("Invite link copied");
       setTimeout(() => setCopied(false), 1500);
@@ -152,7 +153,7 @@ export default function AddFriendModal({ open, onClose }: AddFriendModalProps) {
 
         <div className={styles.section}>
           <div className={styles.inviteBox}>
-            <input readOnly value={INVITE_URL} />
+            <input readOnly value={inviteUrl} />
             <button
               className={`${styles.copyBtn} ${copied ? styles.copied : ""}`}
               onClick={copy}

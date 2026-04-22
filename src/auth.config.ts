@@ -3,7 +3,11 @@ import type { NextAuthConfig } from "next-auth";
 // Edge-safe auth config — no Prisma imports (middleware runs in Edge runtime).
 // Full config (credentials provider + Prisma lookup) ./auth.ts'de extend edilir.
 
-const PUBLIC_PATHS = ["/login", "/signup"];
+// "/" and "/leaderboard" are browsable without login — the homepage shows
+// PLAY/LEADERBOARD/SHOP buttons and the leaderboard is read-only. Everything
+// else gated on authentication. Clicking PLAY while logged out hits /play,
+// which isn't public, and the middleware bounces to /login?callbackUrl=/play.
+const PUBLIC_PATHS = ["/", "/login", "/signup", "/leaderboard"];
 const PUBLIC_PREFIXES = ["/api/auth", "/_next", "/favicon", "/media"];
 
 export default {

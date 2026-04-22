@@ -159,11 +159,16 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
 
   /* --- actions --- */
 
+  const inviteUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/play/room/${code}`
+      : `/play/room/${code}`;
+
   const copyInvite = async () => {
     try {
-      await navigator.clipboard.writeText(`beatbattle.gg/r/${code}`);
+      await navigator.clipboard.writeText(inviteUrl);
       setInviteCopied(true);
-      toast.success(`Code ${code} copied`);
+      toast.success(`Invite link copied`);
       setTimeout(() => setInviteCopied(false), 1500);
     } catch {
       toast.error("Couldn't copy to clipboard");
@@ -404,7 +409,7 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
 
             <div className={styles.colTitle}><span>INVITE LINK</span></div>
             <div className={styles.inviteRow}>
-              <input readOnly value={`beatbattle.gg/r/${code}`} />
+              <input readOnly value={inviteUrl} />
               <button
                 className={`${styles.miniBtn} ${inviteCopied ? styles.ok : ""}`}
                 onClick={copyInvite}
