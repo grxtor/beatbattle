@@ -1,0 +1,152 @@
+.page {
+  min-height: 100vh;
+  padding: 110px 24px 40px;
+  position: relative;
+}
+
+.brandSlot {
+  position: absolute;
+  top: 28px;
+  left: 28px;
+  z-index: 5;
+}
+.userSlot {
+  position: absolute;
+  top: 28px;
+  right: 28px;
+  z-index: 5;
+}
+
+/* ---- Compact mode (in-game): top strips shrink, content moves up ---- */
+.pageCompact {
+  padding-top: 72px;
+}
+.brandSlotCompact {
+  top: 14px;
+  left: 14px;
+  transform: scale(0.72);
+  transform-origin: top left;
+}
+.userSlotCompact {
+  top: 14px;
+  right: 14px;
+  transform: scale(0.72);
+  transform-origin: top right;
+}
+
+/* Row 1 is always reserved for the mascot slot (125px) so that side panels
+   and the center card start at the SAME vertical position on every page,
+   whether a mascot is shown or not.
+   Row 2 is a fixed 540px — long center pages scroll internally inside
+   their own card instead of growing the whole page. */
+.layout {
+  max-width: 1440px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 320px;
+  grid-template-rows: 125px 540px;
+  column-gap: 28px;
+  row-gap: 24px;
+  align-items: start;
+}
+
+.mascotSlot {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
+  align-self: end;
+  display: flex;
+  align-items: flex-end;
+}
+
+/* side panels keep a fixed 540px viewport with their own internal scroll */
+.friendsSlot {
+  grid-column: 1;
+  grid-row: 2;
+  height: 540px;
+  min-height: 0;
+  align-self: start;
+  overflow: hidden;
+}
+.centerSlot  {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: stretch;
+  width: 100%;
+  height: 540px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.roomsSlot {
+  grid-column: 3;
+  grid-row: 2;
+  height: 540px;
+  min-height: 0;
+  align-self: start;
+  overflow: hidden;
+}
+
+/* ---- Focus mode: hide side panels, widen the center column ---- */
+
+.layoutFocus {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 960px;
+}
+.layoutFocus .mascotSlot,
+.layoutFocus .centerSlot {
+  grid-column: 1;
+}
+.layoutFocus .friendsSlot,
+.layoutFocus .roomsSlot {
+  display: none;
+}
+
+/* ---- Immersive mode: in-game full-screen, drops mascot row,
+        fills viewport so the battle UI never needs to scroll. ---- */
+
+.layoutImmersive {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  max-width: 1400px;
+  min-height: calc(100dvh - 112px);
+  row-gap: 0;
+}
+.layoutImmersive .mascotSlot,
+.layoutImmersive .friendsSlot,
+.layoutImmersive .roomsSlot {
+  display: none;
+}
+.layoutImmersive .centerSlot {
+  grid-column: 1;
+  grid-row: 1;
+  height: 100%;
+  min-height: 480px;
+}
+
+@media (max-width: 1140px) {
+  .layout {
+    grid-template-columns: 240px minmax(0, 1fr) 280px;
+    column-gap: 20px;
+    row-gap: 20px;
+  }
+}
+
+@media (max-width: 920px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto;
+    row-gap: 18px;
+  }
+  .mascotSlot  { grid-column: 1; grid-row: 1; justify-self: center; align-self: center; }
+  .mascotSlot:empty { display: none; }
+  .centerSlot  { grid-column: 1; grid-row: 2; justify-self: center; max-width: 640px; height: auto; }
+  .friendsSlot { grid-column: 1; grid-row: 3; height: 440px; }
+  .roomsSlot   { grid-column: 1; grid-row: 4; height: 440px; }
+}
+
+@media (max-width: 640px) {
+  .page { padding: 220px 14px 28px; }
+  .brandSlot { top: 16px; left: 16px; right: 16px; }
+  .userSlot { top: 140px; left: 16px; right: 16px; }
+}

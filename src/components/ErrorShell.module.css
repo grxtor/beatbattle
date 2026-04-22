@@ -1,0 +1,83 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.shell {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+}
+
+.body {
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.label {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--accent);
+}
+
+.message {
+  font-family: var(--font-body);
+  font-size: 18px;
+  line-height: 1.4;
+  color: var(--text);
+  margin: 0;
+}
+
+.digest {
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  word-break: break-all;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.primary,
+.secondary {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 2px;
+  padding: 10px 16px;
+  border: 2px solid var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+  cursor: pointer;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: transform 0.05s ease;
+}
+
+.secondary {
+  background: transparent;
+  color: var(--accent);
+}
+
+.primary:hover,
+.secondary:hover {
+  transform: translate(-1px, -1px);
+}
+
+.primary:active,
+.secondary:active {
+  transform: translate(1px, 1px);
+}

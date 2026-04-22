@@ -1,0 +1,55 @@
+/* Hand-drawn sketch frame — always-animated wobble.
+   Border drifts across 3 filter variants giving a "being drawn" feel.
+   Variants stagger with delays so sibling cards don't pulse in sync. */
+
+.sketch {
+  position: relative;
+  isolation: isolate;
+}
+
+.sketch::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--accent);
+  filter: url(#sketch-1);
+  pointer-events: none;
+  z-index: -1;
+  animation: inkDrift 1.8s steps(3, end) infinite;
+}
+
+.v2::before {
+  filter: url(#sketch-2);
+  animation-delay: -0.6s;
+}
+.v3::before {
+  filter: url(#sketch-3);
+  animation-delay: -1.2s;
+}
+
+/* hover accelerates the scribble */
+.sketch:hover::before {
+  animation-duration: 0.6s;
+}
+
+.sketch::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  background: rgba(255, 138, 42, 0.02);
+  pointer-events: none;
+  z-index: -2;
+}
+
+@keyframes inkDrift {
+  0%, 100% { filter: url(#sketch-1); }
+  33%     { filter: url(#sketch-2); }
+  66%     { filter: url(#sketch-3); }
+}
+
+/* respect users who prefer less motion */
+@media (prefers-reduced-motion: reduce) {
+  .sketch::before {
+    animation: none;
+  }
+}

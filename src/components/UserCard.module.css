@@ -1,0 +1,149 @@
+.root {
+  position: relative;
+}
+
+.card {
+  padding: 10px 14px 12px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 12px;
+  row-gap: 5px;
+  align-items: center;
+  min-width: 240px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.card:hover {
+  opacity: 0.9;
+}
+
+/* ---- user menu dropdown ---- */
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--accent-dim);
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+}
+
+.menuItem {
+  width: 100%;
+  display: block;
+  padding: 8px 10px;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+  transition: color 0.12s, background 0.12s;
+}
+.menuItem:hover {
+  color: var(--bg);
+  background: var(--accent);
+}
+
+.avatarBox {
+  position: relative;
+  grid-row: span 3;
+  align-self: start;
+  margin-top: 2px;
+}
+.avatar {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-deep);
+  color: var(--accent-hi);
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  border: 2px solid var(--accent);
+}
+.online {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 10px;
+  height: 10px;
+  background: var(--ok);
+  border: 2px solid var(--bg);
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.username {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rank {
+  padding: 2px 6px;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: var(--ok);
+  border: 1px solid var(--ok);
+  letter-spacing: 1px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  line-height: 1;
+}
+.stats b { color: var(--text); font-weight: 400; }
+.sep { color: var(--accent-dim); }
+
+.xpRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+.xpBar {
+  flex: 1;
+  display: flex;
+  gap: 2px;
+}
+.xpBar span {
+  flex: 1;
+  height: 5px;
+  background: var(--line-hi);
+}
+.xpBar span.on { background: var(--accent); }
+.xpNum {
+  font-family: var(--font-pixel);
+  font-size: 6px;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .card { min-width: 0; padding: 8px 12px 10px; }
+  .menu { left: 0; right: 0; }
+}

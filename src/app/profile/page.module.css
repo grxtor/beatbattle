@@ -1,0 +1,228 @@
+.wrap {
+  composes: sketchShell from global;
+}
+
+.scroll {
+  composes: sketchScroll from global;
+  padding: 22px 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1px dashed rgba(255, 138, 42, 0.25);
+}
+
+.avatar {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-deep);
+  color: var(--accent-hi);
+  font-family: var(--font-pixel);
+  font-size: 16px;
+  border: 2px solid var(--accent);
+}
+
+.heroText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.heroName {
+  font-family: var(--font-pixel);
+  font-size: clamp(14px, 2vw, 20px);
+  letter-spacing: 2px;
+  color: var(--accent);
+  line-height: 1;
+}
+.heroSub {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+.heroSub b { color: var(--text); font-weight: 400; }
+
+.heroActions { display: flex; gap: 6px; }
+.heroBtn {
+  padding: 8px 12px;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: var(--accent);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.heroBtn:hover { color: var(--accent-hi); }
+
+.bioBlock {
+  padding: 10px 14px;
+  border: 1px dashed rgba(255, 138, 42, 0.3);
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--text-dim);
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.stat {
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.statLabel {
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+.statValue {
+  font-family: var(--font-pixel);
+  font-size: 22px;
+  color: var(--text);
+  letter-spacing: 1px;
+}
+.statValue.orange { color: var(--accent); }
+
+.xpRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+}
+.xpLbl {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+.xpBar {
+  flex: 1;
+  display: flex;
+  gap: 2px;
+}
+.xpBar span {
+  flex: 1;
+  height: 8px;
+  background: var(--line-hi);
+}
+.xpBar span.on { background: var(--accent); }
+.xpNum {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+
+.sectionTitle {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text);
+  padding-top: 4px;
+}
+
+.badges {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+}
+.badge {
+  padding: 14px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+.badgeIcon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-pixel);
+  font-size: 18px;
+  color: var(--accent);
+  background: var(--accent-deep);
+}
+.badge.locked .badgeIcon {
+  color: var(--text-faint);
+  background: var(--line);
+}
+.badgeName {
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  line-height: 1.2;
+}
+
+.history { display: flex; flex-direction: column; gap: 4px; }
+.histRow {
+  display: grid;
+  grid-template-columns: 32px 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+}
+.histRow:hover { border-color: var(--accent-dim); }
+.histRank {
+  width: 32px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: var(--bg);
+  background: var(--line-hi);
+}
+.histRank.first  { background: var(--accent); }
+.histRank.second { background: #d8dde0; }
+.histRank.third  { background: #c8926a; }
+
+.histBody { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.histName {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.histSub {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 0.9;
+}
+.histXp {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.histTime {
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}

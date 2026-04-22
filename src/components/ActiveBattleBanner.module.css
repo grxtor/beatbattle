@@ -1,0 +1,82 @@
+.banner {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 8px 14px 8px 12px;
+  background: var(--bg);
+  display: inline-grid;
+  grid-template-columns: auto auto auto;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: var(--text);
+  text-decoration: none;
+  animation: bannerIn 0.25s cubic-bezier(0.4, 1.4, 0.6, 1);
+  transition: transform 0.15s;
+}
+.banner:hover {
+  transform: translate(-50%, -1px);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  background: #e04b3a;
+  animation: bannerPulse 1.2s ease-in-out infinite;
+}
+
+.body {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+.kicker {
+  color: var(--accent);
+}
+.code {
+  color: var(--text);
+}
+.sep {
+  color: var(--accent-dim);
+}
+.name {
+  color: var(--text-dim);
+}
+
+.cta {
+  color: var(--accent);
+  letter-spacing: 1.5px;
+}
+
+@keyframes bannerIn {
+  from { opacity: 0; transform: translate(-50%, -10px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+@keyframes bannerPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.35; transform: scale(0.7); }
+}
+
+@media (max-width: 640px) {
+  .banner {
+    top: auto;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    transform: none;
+    grid-template-columns: auto 1fr auto;
+    justify-content: stretch;
+    padding: 8px 12px;
+  }
+  .banner:hover { transform: translateY(-1px); }
+  .name { display: none; }
+  @keyframes bannerIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+}

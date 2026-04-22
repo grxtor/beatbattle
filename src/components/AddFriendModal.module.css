@@ -1,0 +1,167 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent-dim);
+  transition: border-color 0.15s;
+}
+.searchBox:focus-within { border-color: var(--accent); }
+.searchBox input {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 18px;
+  color: var(--text);
+  letter-spacing: 1px;
+}
+.searchBox input::placeholder { color: var(--text-faint); }
+.searchBtn {
+  padding: 6px 10px;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.searchBtn:hover { color: var(--bg); background: var(--accent); }
+
+.suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+.row:hover { border-color: var(--line-hi); }
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-deep);
+  color: var(--accent-hi);
+  font-family: var(--font-pixel);
+  font-size: 8px;
+}
+
+.rowBody {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  line-height: 1;
+  min-width: 0;
+}
+.rowName {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rowSub {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 0.9;
+}
+
+.addBtn {
+  padding: 5px 10px;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.addBtn:hover { color: var(--bg); background: var(--accent); }
+.addBtn.added {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+  margin: 8px 0 4px;
+}
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px dashed rgba(255, 138, 42, 0.2);
+}
+
+.inviteBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-hi);
+}
+.inviteBox input {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+}
+.copyBtn {
+  padding: 5px 10px;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.copyBtn:hover { color: var(--bg); background: var(--accent); }
+.copyBtn.copied { color: var(--ok); border-color: var(--ok); }
+
+.hint {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.3;
+}

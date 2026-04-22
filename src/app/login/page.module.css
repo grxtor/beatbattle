@@ -1,0 +1,183 @@
+.page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 40px 24px;
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  padding: 36px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.title {
+  font-family: var(--font-pixel);
+  font-size: clamp(24px, 4vw, 32px);
+  letter-spacing: 3px;
+  line-height: 1;
+}
+.title span { color: var(--accent); }
+
+.sub {
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--text-dim);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+}
+
+.input {
+  padding: 10px 12px;
+  font-family: var(--font-body);
+  font-size: 17px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--accent-dim);
+  outline: none;
+  transition: border-color 0.15s;
+  letter-spacing: 1px;
+}
+.input:focus { border-color: var(--accent); }
+.input::placeholder { color: var(--text-faint); }
+
+.error {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: #ff6262;
+}
+
+.submit {
+  margin-top: 6px;
+  padding: 14px 20px;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.submit:hover:not(:disabled) {
+  color: var(--bg);
+  background: var(--accent);
+}
+.submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.alt {
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(255, 138, 42, 0.25);
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-dim);
+  text-align: center;
+}
+.altLink {
+  color: var(--accent);
+  transition: color 0.15s;
+}
+.altLink:hover { color: var(--accent-hi); }
+
+/* ---- OAuth section ---- */
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+}
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px dashed rgba(255, 138, 42, 0.2);
+}
+
+.oauthList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.oauthBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 16px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--line-hi);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.oauthBtn:hover:not(:disabled) {
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+.oauthBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.oauthMark {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.altRow {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-dim);
+  border-top: 1px dashed rgba(255, 138, 42, 0.25);
+}
+.altRow .altLink {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 1.5px;
+}

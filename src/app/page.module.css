@@ -1,142 +1,62 @@
-.page {
-  --background: #fafafa;
-  --foreground: #fff;
+/* Home — only the center menu card styles */
 
-  --text-primary: #000;
-  --text-secondary: #666;
-
-  --button-primary-hover: #383838;
-  --button-secondary-hover: #f2f2f2;
-  --button-secondary-border: #ebebeb;
-
+.card {
+  height: 100%;
+  padding: 48px 40px;
   display: flex;
-  flex: 1;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  font-family: var(--font-geist-sans);
-  background-color: var(--background);
-}
-
-.main {
-  display: flex;
-  flex: 1;
+  gap: 44px;
+  max-width: 560px;
+  margin: 0 auto;
   width: 100%;
-  max-width: 800px;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: space-between;
-  background-color: var(--foreground);
-  padding: 120px 60px;
 }
 
-.intro {
+.title {
+  font-family: var(--font-pixel);
+  font-size: clamp(28px, 4.5vw, 46px);
+  line-height: 1;
+  letter-spacing: 4px;
+  text-align: center;
+}
+.title span { color: var(--accent); }
+
+.buttons {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
-  gap: 24px;
-}
-
-.intro h1 {
-  max-width: 320px;
-  font-size: 40px;
-  font-weight: 600;
-  line-height: 48px;
-  letter-spacing: -2.4px;
-  text-wrap: balance;
-  color: var(--text-primary);
-}
-
-.intro p {
-  max-width: 440px;
-  font-size: 18px;
-  line-height: 32px;
-  text-wrap: balance;
-  color: var(--text-secondary);
-}
-
-.intro a {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.ctas {
-  display: flex;
-  flex-direction: row;
+  gap: 18px;
   width: 100%;
-  max-width: 440px;
-  gap: 16px;
-  font-size: 14px;
+  max-width: 340px;
+  margin: 0 auto;
 }
 
-.ctas a {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 40px;
-  padding: 0 16px;
-  border-radius: 128px;
-  border: 1px solid transparent;
-  transition: 0.2s;
+.btnLink {
+  display: block;
+}
+
+.btn {
+  display: block;
+  padding: 20px;
+  font-family: var(--font-pixel);
+  font-size: 13px;
+  letter-spacing: 3px;
+  color: var(--text);
+  text-align: center;
+  background: transparent;
+  transition: color 0.15s, background 0.15s;
   cursor: pointer;
-  width: fit-content;
-  font-weight: 500;
+  width: 100%;
 }
+.btn:hover { color: var(--accent-hi); }
 
-a.primary {
-  background: var(--text-primary);
-  color: var(--background);
-  gap: 8px;
+.btnPlay {
+  color: var(--accent);
+  font-size: 15px;
 }
+.btnPlay:hover { color: #1a0a00; background: var(--accent); }
 
-a.secondary {
-  border-color: var(--button-secondary-border);
-}
-
-/* Enable hover only on non-touch devices */
-@media (hover: hover) and (pointer: fine) {
-  a.primary:hover {
-    background: var(--button-primary-hover);
-    border-color: transparent;
-  }
-
-  a.secondary:hover {
-    background: var(--button-secondary-hover);
-    border-color: transparent;
-  }
-}
-
-@media (max-width: 600px) {
-  .main {
-    padding: 48px 24px;
-  }
-
-  .intro {
-    gap: 16px;
-  }
-
-  .intro h1 {
-    font-size: 32px;
-    line-height: 40px;
-    letter-spacing: -1.92px;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  .logo {
-    filter: invert();
-  }
-
-  .page {
-    --background: #000;
-    --foreground: #000;
-
-    --text-primary: #ededed;
-    --text-secondary: #999;
-
-    --button-primary-hover: #ccc;
-    --button-secondary-hover: #1a1a1a;
-    --button-secondary-border: #1a1a1a;
-  }
+@media (max-width: 640px) {
+  .card { padding: 32px 20px; gap: 30px; }
+  .btn { padding: 16px; font-size: 11px; }
+  .btnPlay { font-size: 13px; }
 }

@@ -1,0 +1,317 @@
+// BeatBattle veri modeli — MVP sürümü.
+// Runtime/online durumu (Friend.status, Room.timeLeft gibi alanlar)
+// presence servisinde tutulacak; burada sadece kalıcı state var.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// —— ENUMS ——
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+enum NotificationType {
+  FRIEND
+  INVITE
+  BADGE
+  SYSTEM
+}
+
+enum RoomGenre {
+  TRAP
+  LOFI
+  HIPHOP
+  HOUSE
+  FX
+  RANDOM
+}
+
+enum RoomDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum RoomPrivacy {
+  PUBLIC
+  PRIVATE
+}
+
+enum RoomPhase {
+  LOBBY
+  REVEAL
+  PRODUCTION
+  UPLOAD
+  VOTING
+  RESULTS
+  CANCELLED
+}
+
+enum VoteRating {
+  INSANE
+  VERY_GOOD
+  GOOD
+  OKAY
+  BAD
+  VERY_BAD
+}
+
+/// —— MODELS ——
+
+model User {
+  id            String   @id @default(cuid())
+  username      String   @unique
+  initials      String   @db.VarChar(3)
+  email         String?  @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  bio           String?   @db.VarChar(200)
+  level         Int      @default(1)
+  xp            Int      @default(0)
+  wins          Int      @default(0)
+  streak        Int      @default(0)
+  currency      Int      @default(0)
+  tier          String   @default("BRONZE III")
+  online        Boolean  @default(false)
+  lastSeenAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Privacy toggles
+  acceptFriendRequests Boolean @default(true)
+  showOnLeaderboard    Boolean @default(true)
+  discoverable         Boolean @default(true)
+
+  sentFriendships     Friendship[]   @relation("sentFriendships")
+  receivedFriendships Friendship[]   @relation("receivedFriendships")
+  hostedRooms         Room[]         @relation("hostedRooms")
+  roomPlayers         RoomPlayer[]
+  tracks              Track[]
+  votesCast           Vote[]         @relation("votesCast")
+  ownedPacks          UserPack[]
+  notifications       Notification[]
+  battleResults       BattleResult[]
+  badges              UserBadge[]
+  accounts            Account[]
+
+  @@index([xp(sort: Desc)])
+  @@index([online])
+}
+
+// NextAuth OAuth: linked external provider accounts (Discord, Google, …)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Friendship {
+  id          String           @id @default(cuid())
+  requesterId String
+  addresseeId String
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  requester User @relation("sentFriendships", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("receivedFriendships", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+}
+
+model Room {
+  id           String         @id @default(cuid())
+  code         String         @unique @db.VarChar(6)
+  name         String
+  hostId       String
+  genre        RoomGenre
+  lengthMin    Int
+  maxPlayers   Int
+  difficulty   RoomDifficulty @default(MEDIUM)
+  privacy      RoomPrivacy    @default(PUBLIC)
+  phase        RoomPhase      @default(LOBBY)
+  phaseEndsAt  DateTime?
+  samples      Json?
+  revealSec    Int            @default(30)
+  uploadSec    Int            @default(120)
+  votingSec    Int            @default(60)
+  featured     Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  startedAt    DateTime?
+  endedAt      DateTime?
+
+  host    User           @relation("hostedRooms", fields: [hostId], references: [id])
+  players RoomPlayer[]
+  tracks  Track[]
+  results BattleResult[]
+
+  @@index([phase, privacy])
+  @@index([hostId])
+}
+
+model RoomPlayer {
+  id       String   @id @default(cuid())
+  roomId   String
+  userId   String
+  isHost   Boolean  @default(false)
+  isReady  Boolean  @default(false)
+  joinedAt DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([userId])
+}
+
+model Track {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String
+  audioUrl  String?
+  createdAt DateTime @default(now())
+
+  room  Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  votes Vote[]
+
+  @@unique([roomId, userId])
+}
+
+model Vote {
+  id        String     @id @default(cuid())
+  trackId   String
+  voterId   String
+  rating    VoteRating
+  /// When non-null, the voter has locked this choice and it can no longer be changed.
+  lockedAt  DateTime?
+  createdAt DateTime   @default(now())
+
+  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  voter User  @relation("votesCast", fields: [voterId], references: [id], onDelete: Cascade)
+
+  @@unique([trackId, voterId])
+}
+
+model ShopPack {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  genre       RoomGenre
+  samples     Int
+  price       Int
+  icon        String
+  isNew       Boolean   @default(false)
+  unlockLvl   Int?
+  description String?   @db.VarChar(240)
+
+  owners      UserPack[]
+  sampleList  Sample[]
+}
+
+model Sample {
+  id        String  @id @default(cuid())
+  packId    Int
+  name      String
+  duration  String  // "0:03"-style display
+  audioUrl  String?
+  orderIdx  Int     @default(0)
+  createdAt DateTime @default(now())
+
+  pack ShopPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+
+  @@index([packId, orderIdx])
+}
+
+model UserPack {
+  userId  String
+  packId  Int
+  ownedAt DateTime @default(now())
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pack ShopPack @relation(fields: [packId], references: [id])
+
+  @@id([userId, packId])
+  @@index([packId])
+}
+
+model Notification {
+  id              String           @id @default(cuid())
+  userId          String
+  type            NotificationType
+  message         String
+  read            Boolean          @default(false)
+  actionPrimary   String?
+  actionSecondary String?
+  actionPayload   Json?
+  createdAt       DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt(sort: Desc)])
+}
+
+model BattleResult {
+  id           String   @id @default(cuid())
+  roomId       String
+  userId       String
+  place        Int
+  trackScore   Int      @default(0)
+  xpAwarded    Int      @default(0)
+  coinsAwarded Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model Badge {
+  id          Int     @id @default(autoincrement())
+  code        String  @unique
+  name        String
+  icon        String
+  description String?
+  unlockLvl   Int?
+
+  holders UserBadge[]
+}
+
+model UserBadge {
+  userId   String
+  badgeId  Int
+  earnedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, badgeId])
+  @@index([userId])
+  @@index([badgeId])
+}

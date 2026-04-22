@@ -1,0 +1,122 @@
+.bar {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 90;
+  width: min(640px, calc(100% - 32px));
+  padding: 12px 14px 12px 18px;
+  background: var(--bg);
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  animation: barUp 0.22s cubic-bezier(0.4, 1.4, 0.6, 1);
+}
+.bar[data-shake="true"] {
+  animation: barShake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  background: var(--accent);
+  animation: dotPulse 1.4s ease-in-out infinite;
+  transition: background 0.12s;
+}
+
+.label {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--text);
+  line-height: 1.2;
+}
+.label b {
+  color: var(--accent);
+  font-weight: 400;
+  transition: color 0.12s;
+}
+
+.reset,
+.save {
+  padding: 9px 14px;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--line-hi);
+  color: var(--text-dim);
+  transition: all 0.15s;
+}
+.reset:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent-dim);
+}
+.save {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.save:hover:not(:disabled) {
+  color: var(--bg);
+  background: var(--accent);
+}
+.save:disabled,
+.reset:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Full-viewport red glow that pulses once when guard fires.
+   Sits above content but below modals/toasts; pointer-events disabled. */
+.flash {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 100% 80% at 50% 50%, transparent 30%, rgba(224, 75, 58, 0.22) 100%),
+    linear-gradient(0deg, rgba(224, 75, 58, 0.08), rgba(224, 75, 58, 0.08));
+  animation: flashFade 0.45s ease-out forwards;
+}
+
+@keyframes barUp {
+  from { opacity: 0; transform: translate(-50%, 18px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* Hard, fast wobble — bigger amplitude than before, more keyframes for snap. */
+@keyframes barShake {
+  0%   { transform: translate(-50%, 0); }
+  10%  { transform: translate(calc(-50% - 12px), 0) rotate(-0.4deg); }
+  20%  { transform: translate(calc(-50% + 12px), 0) rotate(0.4deg); }
+  30%  { transform: translate(calc(-50% - 10px), 0) rotate(-0.3deg); }
+  40%  { transform: translate(calc(-50% + 10px), 0) rotate(0.3deg); }
+  55%  { transform: translate(calc(-50% - 7px), 0); }
+  70%  { transform: translate(calc(-50% + 5px), 0); }
+  85%  { transform: translate(calc(-50% - 3px), 0); }
+  100% { transform: translate(-50%, 0); }
+}
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.7); }
+}
+
+@keyframes flashFade {
+  0%   { opacity: 0; }
+  20%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (max-width: 640px) {
+  .bar {
+    bottom: 12px;
+    width: calc(100% - 24px);
+    grid-template-columns: auto 1fr auto;
+    padding: 10px 12px;
+  }
+  .label { font-size: 8px; }
+  .reset { display: none; }
+}
