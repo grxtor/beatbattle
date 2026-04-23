@@ -51,7 +51,7 @@ type RoomResponse = {
     privacy: string;
     phase: Phase;
     phaseEndsAt: string | null;
-    samples: { name: string; duration: string }[] | null;
+    samples: { name: string; duration: string; audioUrl: string | null }[] | null;
     host: { id: string; username: string; initials: string; level: number };
     players: RoomPlayer[];
     tracks: Track[];
@@ -95,6 +95,7 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
   const [now, setNow] = useState<number>(() => Date.now());
   const [inviteCopied, setInviteCopied] = useState(false);
   const [playingSample, setPlayingSample] = useState<number | null>(null);
+  const sampleAudioRef = useRef<HTMLAudioElement | null>(null);
   const [voteTrackIdx, setVoteTrackIdx] = useState(0);
   const [localVotes, setLocalVotes] = useState<
     Record<string, { rating: VoteRating; locked: boolean }>
@@ -156,6 +157,25 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
   const room = data?.room;
   const isHost = room?.host.id === me?.id;
   const amReady = room?.players.find((p) => p.userId === me?.id)?.isReady ?? false;
+
+  /* --- sample audio playback --- */
+
+  useEffect(() => {
+    const el = sampleAudioRef.current;
+    if (!el) return;
+    if (playingSample === null) {
+      el.pause();
+      return;
+    }
+    const s = room?.samples?.[playingSample];
+    if (!s?.audioUrl) {
+      setPlayingSample(null);
+      return;
+    }
+    el.src = s.audioUrl;
+    el.currentTime = 0;
+    void el.play().catch(() => setPlayingSample(null));
+  }, [playingSample, room?.samples]);
 
   /* --- actions --- */
 
@@ -454,12 +474,24 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
                 <button
                   className={`${styles.playBtn} ${playingSample === i ? styles.active : ""}`}
                   onClick={() => setPlayingSample(playingSample === i ? null : i)}
+                  disabled={!s.audioUrl}
+                  title={s.audioUrl ? undefined : "No preview available"}
                 >
-                  {playingSample === i ? "■ STOP" : "▸ PLAY"}
+                  {!s.audioUrl ? "— MUTED" : playingSample === i ? "■ STOP" : "▸ PLAY"}
                 </button>
               </Sketch>
             ))}
           </div>
+
+          {samples.some((s) => s.audioUrl) && (
+            <a
+              href={`/api/rooms/${code}/samples.zip`}
+              download
+              className={styles.downloadSamples}
+            >
+              ⬇ DOWNLOAD SAMPLES (.zip)
+            </a>
+          )}
         </Sketch>
       )}
 
@@ -496,6 +528,15 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
 
           <Sketch variant={2} className={styles.prodSide}>
             <div className={styles.prodSideTitle}>SAMPLES · REPLAY</div>
+            {samples.some((s) => s.audioUrl) && (
+              <a
+                href={`/api/rooms/${code}/samples.zip`}
+                download
+                className={styles.downloadSamples}
+              >
+                ⬇ DOWNLOAD .ZIP
+              </a>
+            )}
             {samples.map((s, i) => (
               <div key={s.name} className={styles.miniSample}>
                 <div className={styles.miniSampleBody}>
@@ -505,8 +546,10 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
                 <button
                   className={styles.miniPlay}
                   onClick={() => setPlayingSample(playingSample === i ? null : i)}
+                  disabled={!s.audioUrl}
+                  title={s.audioUrl ? undefined : "No preview available"}
                 >
-                  {playingSample === i ? "■" : "▸"}
+                  {!s.audioUrl ? "–" : playingSample === i ? "■" : "▸"}
                 </button>
               </div>
             ))}
@@ -753,6 +796,13 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
       {me.inRoom && phase !== "CANCELLED" && (
         <RoomChat code={code} meId={me.id} />
       )}
+
+      <audio
+        ref={sampleAudioRef}
+        onEnded={() => setPlayingSample(null)}
+        preload="none"
+        style={{ display: "none" }}
+      />
     </div>
   );
 }

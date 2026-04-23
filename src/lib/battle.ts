@@ -1,9 +1,83 @@
 import "server-only";
-import type { Prisma, RoomPhase } from "@prisma/client";
+import type { Prisma, RoomGenre, RoomPhase } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { rollSamples, placementsFor, awardForPlace, levelForXp, tierForXp, VOTE_PARTICIPATION_XP } from "@/lib/game";
+import { rollSamples, placementsFor, awardForPlace, levelForXp, tierForXp, shuffle, VOTE_PARTICIPATION_XP, type SampleSet } from "@/lib/game";
 import { createNotification } from "@/lib/notifications";
 import { evaluateBadgesOnBattleEnd } from "@/lib/badges";
+
+/**
+ * Pick a playable, well-balanced 4-sample set for a battle.
+ *
+ * Every producer needs at least one kick and one snare to build a beat, so
+ * those two categories are always present. The remaining two picks come
+ * from 808s / claps / fx / percussion at random, so no two battles feel
+ * identical.
+ *
+ * Category is parsed from the Sample's audio URL (`/media/samples/<dir>/…`),
+ * since that's the directory layout `scanLibrary()` writes during seeding.
+ * Any category that has no samples on disk is silently skipped, and any
+ * shortfall is padded from the fantasy `SAMPLE_POOL` so unseeded/partially
+ * seeded deployments still boot a battle.
+ */
+function categoryOf(audioUrl: string | null): string | null {
+  if (!audioUrl) return null;
+  const m = audioUrl.match(/\/samples\/([^/]+)\//);
+  return m ? m[1].toLowerCase() : null;
+}
+
+async function pickBattleSamples(genre: RoomGenre, count = 4): Promise<SampleSet> {
+  const genreFilter: Prisma.SampleWhereInput["pack"] =
+    genre === "RANDOM" ? undefined : { genre: { in: [genre, "FX"] } };
+
+  const rows = await prisma.sample.findMany({
+    where: { audioUrl: { not: null }, pack: genreFilter },
+    select: { name: true, duration: true, audioUrl: true },
+    take: 800,
+  });
+
+  const byCat = new Map<string, typeof rows>();
+  for (const r of rows) {
+    const c = categoryOf(r.audioUrl);
+    if (!c) continue;
+    const bucket = byCat.get(c) ?? [];
+    bucket.push(r);
+    byCat.set(c, bucket);
+  }
+
+  const pickOne = (cat: string) => {
+    const bucket = byCat.get(cat);
+    if (!bucket || bucket.length === 0) return null;
+    const idx = Math.floor(Math.random() * bucket.length);
+    const [picked] = bucket.splice(idx, 1);
+    return picked;
+  };
+
+  const picks: SampleSet = [];
+
+  for (const required of ["kicks", "snares"]) {
+    const one = pickOne(required);
+    if (one) picks.push(one);
+  }
+
+  const extras = shuffle(["808s", "claps", "fx", "percussion"]);
+  for (const cat of extras) {
+    if (picks.length >= count) break;
+    const one = pickOne(cat);
+    if (one) picks.push(one);
+  }
+
+  // If some required category was missing on disk, backfill from anything
+  // else we still have, then from the fantasy pool — battle must start.
+  const flatLeft = shuffle([...byCat.values()].flat());
+  while (picks.length < count && flatLeft.length > 0) {
+    picks.push(flatLeft.shift()!);
+  }
+  if (picks.length < count) {
+    const filler = rollSamples(genre, count - picks.length);
+    picks.push(...filler);
+  }
+  return picks;
+}
 
 /**
  * Normal phase order (CANCELLED is a special state).
@@ -50,7 +124,7 @@ export async function startBattle(roomId: string, actorId: string) {
   if (room.hostId !== actorId) throw new Error("NOT_HOST");
   if (room.phase !== "LOBBY") throw new Error("ALREADY_STARTED");
 
-  const samples = rollSamples(room.genre);
+  const samples = await pickBattleSamples(room.genre);
   const durationSec = durationForPhase("REVEAL", room)!;
   const phaseEndsAt = new Date(Date.now() + durationSec * 1000);
 

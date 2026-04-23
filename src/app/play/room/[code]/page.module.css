@@ -486,6 +486,22 @@
   background: transparent;
 }
 
+.downloadSamples {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 10px 22px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  background: transparent;
+  border: 2px dashed var(--accent);
+  text-decoration: none;
+  align-self: center;
+  transition: all 0.15s;
+}
+.downloadSamples:hover { color: var(--bg); background: var(--accent); border-style: solid; }
+
 .prodSide {
   padding: 14px;
   display: flex;

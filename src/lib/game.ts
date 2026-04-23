@@ -115,9 +115,14 @@ export const SAMPLE_POOL: Record<RoomGenre, string[]> = {
   ],
 };
 
-export type SampleSet = { name: string; duration: string }[];
+export type BattleSample = {
+  name: string;
+  duration: string;
+  audioUrl: string | null;
+};
+export type SampleSet = BattleSample[];
 
-function shuffle<T>(arr: T[]): T[] {
+export function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -131,11 +136,12 @@ function randDuration(): string {
   return `0:${s.toString().padStart(2, "0")}`;
 }
 
+/** Fantasy pool roll — used as a fallback when the DB has no real library samples for this genre. */
 export function rollSamples(genre: RoomGenre, count = 4): SampleSet {
   const pool = SAMPLE_POOL[genre] ?? SAMPLE_POOL.RANDOM;
   return shuffle(pool)
     .slice(0, count)
-    .map((name) => ({ name, duration: randDuration() }));
+    .map((name) => ({ name, duration: randDuration(), audioUrl: null }));
 }
 
 /* ---- Placement math ---- */
