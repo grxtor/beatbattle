@@ -74,6 +74,7 @@ model User {
   emailVerified DateTime?
   image         String?
   passwordHash  String?
+  sessionVersion Int     @default(0)
   bio           String?   @db.VarChar(200)
   level         Int      @default(1)
   xp            Int      @default(0)

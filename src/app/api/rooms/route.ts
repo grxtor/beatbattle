@@ -4,6 +4,7 @@ import { Prisma, type RoomGenre } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getPublicRooms } from "@/lib/queries";
+import { RATE_LIMITS, rateLimit, tooManyRequests } from "@/lib/rateLimit";
 
 const ROOM_GENRES = ["TRAP", "LOFI", "HIPHOP", "HOUSE", "FX", "RANDOM"] as const;
 const DIFFICULTIES = ["EASY", "MEDIUM", "HARD"] as const;
@@ -31,10 +32,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "unauth" }, { status: 401 });
   }
 
+  const createLimit = await rateLimit(
+    `roomcreate:${session.user.id}`,
+    RATE_LIMITS.roomCreate,
+  );
+  if (!createLimit.ok) return tooManyRequests(createLimit.retryAfter);
+
   const body = await request.json().catch(() => null);
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "invalid" }, { status: 400 });
+  }
+
+  const activeHostedRooms = await prisma.room.count({
+    where: {
+      hostId: session.user.id,
+      endedAt: null,
+      phase: { not: "CANCELLED" },
+    },
+  });
+  if (activeHostedRooms >= 3) {
+    return NextResponse.json(
+      { error: "active room limit reached" },
+      { status: 409 },
+    );
   }
 
   const name =

@@ -2,17 +2,29 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/components/Toast";
+import { signIn } from "next-auth/react";
 import Modal from "@/components/Modal";
-import styles from "./page.module.css";
+import { useToast } from "@/components/Toast";
+import {
+  REAUTH_REQUIRED_CODE,
+  SETTINGS_REDIRECT,
+} from "@/lib/authConstants";
 import danger from "./danger.module.css";
+import styles from "./page.module.css";
+
+type ReauthProvider = {
+  id: string;
+  label: string;
+};
 
 export default function DangerZone({
   hasPassword,
   username,
+  reauthProviders,
 }: {
   hasPassword: boolean;
   username: string;
+  reauthProviders: ReauthProvider[];
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -20,13 +32,34 @@ export default function DangerZone({
   const [password, setPassword] = useState("");
   const [confirmText, setConfirmText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [reauthBusy, setReauthBusy] = useState<string | null>(null);
+  const [needsReauth, setNeedsReauth] = useState(false);
 
   const canSubmit =
-    confirmText === "DELETE" && (!hasPassword || password.length > 0) && !busy;
+    confirmText === "DELETE" &&
+    (!hasPassword || password.length > 0) &&
+    !busy &&
+    reauthBusy === null;
+
+  const reauthLoginHref = `/login?callbackUrl=${encodeURIComponent(
+    SETTINGS_REDIRECT,
+  )}`;
+
+  const startProviderReauth = async (providerId: string) => {
+    setReauthBusy(providerId);
+    try {
+      await signIn(providerId, { redirectTo: SETTINGS_REDIRECT });
+    } finally {
+      setReauthBusy(null);
+    }
+  };
 
   const doDelete = async () => {
     if (!canSubmit) return;
+
+    setNeedsReauth(false);
     setBusy(true);
+
     try {
       const res = await fetch("/api/user", {
         method: "DELETE",
@@ -36,12 +69,22 @@ export default function DangerZone({
           ...(hasPassword ? { password } : {}),
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        code?: string;
+      };
+
       if (!res.ok) {
-        toast.error(data.error ?? "couldn't delete account");
+        if (res.status === 403 && data.code === REAUTH_REQUIRED_CODE) {
+          setNeedsReauth(true);
+          toast.error("Reauthenticate before deleting your account.");
+        } else {
+          toast.error(data.error ?? "couldn't delete account");
+        }
         setBusy(false);
         return;
       }
+
       toast.success("Account deleted");
       router.replace("/login");
       router.refresh();
@@ -66,17 +109,22 @@ export default function DangerZone({
           className={danger.btn}
           onClick={() => setOpen(true)}
         >
-          DELETE…
+          DELETE...
         </button>
       </div>
 
-      <Modal open={open} onClose={() => !busy && setOpen(false)} title="CONFIRM DELETE">
+      <Modal
+        open={open}
+        onClose={() => !busy && reauthBusy === null && setOpen(false)}
+        title="CONFIRM DELETE"
+      >
         <div className={danger.modalBody}>
           <p className={danger.warn}>
             This removes your account and everything tied to it. Rooms you
-            currently host are transferred to another player when possible,
-            and deleted otherwise.
+            currently host are transferred to another player when possible, and
+            deleted otherwise.
           </p>
+
           {hasPassword && (
             <div className={styles.field}>
               <span className={styles.label}>YOUR PASSWORD</span>
@@ -85,29 +133,65 @@ export default function DangerZone({
                 type="password"
                 autoComplete="current-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={busy}
+                onChange={(event) => setPassword(event.target.value)}
+                disabled={busy || reauthBusy !== null}
               />
             </div>
           )}
+
           <div className={styles.field}>
-            <span className={styles.label}>TYPE “DELETE” TO CONFIRM</span>
+            <span className={styles.label}>
+              TYPE <span>&quot;DELETE&quot;</span> TO CONFIRM
+            </span>
             <input
               className={styles.input}
               type="text"
               value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value)}
-              disabled={busy}
+              onChange={(event) => setConfirmText(event.target.value)}
+              disabled={busy || reauthBusy !== null}
               autoCapitalize="characters"
               spellCheck={false}
             />
           </div>
+
+          {needsReauth && (
+            <div className={danger.reauthBox}>
+              <span className={styles.label}>RECENT LOGIN REQUIRED</span>
+              <p className={styles.footNote}>
+                Log in again before deleting this account.
+              </p>
+              <div className={styles.inlineActions}>
+                <button
+                  type="button"
+                  className={styles.linkBtn}
+                  onClick={() => router.push(reauthLoginHref)}
+                  disabled={busy || reauthBusy !== null}
+                >
+                  {"LOG IN ->"}
+                </button>
+                {reauthProviders.map((provider) => (
+                  <button
+                    key={provider.id}
+                    type="button"
+                    className={styles.linkBtn}
+                    onClick={() => startProviderReauth(provider.id)}
+                    disabled={busy || reauthBusy !== null}
+                  >
+                    {reauthBusy === provider.id
+                      ? "..."
+                      : `USE ${provider.label}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className={danger.actions}>
             <button
               type="button"
               className={styles.linkBtn}
               onClick={() => setOpen(false)}
-              disabled={busy}
+              disabled={busy || reauthBusy !== null}
             >
               CANCEL
             </button>
@@ -117,7 +201,7 @@ export default function DangerZone({
               onClick={doDelete}
               disabled={!canSubmit}
             >
-              {busy ? "DELETING…" : "DELETE MY ACCOUNT"}
+              {busy ? "DELETING..." : "DELETE MY ACCOUNT"}
             </button>
           </div>
         </div>

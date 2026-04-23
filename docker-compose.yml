@@ -21,6 +21,7 @@ services:
     environment:
       # Override env-file defaults for the container's perspective.
       NODE_ENV: production
+      AUTH_URL: ${AUTH_URL:?set AUTH_URL in .env}
       MEDIA_ROOT: /media
       MEDIA_PUBLIC_BASE: /media
     ports:

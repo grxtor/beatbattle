@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { auth } from "@/auth";
+import { auth, unstable_update } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { RATE_LIMITS, rateLimit, tooManyRequests } from "@/lib/rateLimit";
 
@@ -56,8 +56,12 @@ export async function POST(request: Request) {
   const newHash = await bcrypt.hash(parsed.data.newPassword, 10);
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash: newHash },
+    data: {
+      passwordHash: newHash,
+      sessionVersion: { increment: 1 },
+    },
   });
+  await unstable_update({ authenticatedAt: Date.now() });
 
   return NextResponse.json({ ok: true });
 }

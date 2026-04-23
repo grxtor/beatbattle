@@ -4,18 +4,18 @@ import Sketch from "@/components/Sketch";
 import { UnsavedChangesProvider } from "@/components/UnsavedChanges";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import ProfileForm from "./ProfileForm";
-import PrivacyToggles from "./PrivacyToggles";
+import DangerZone from "./DangerZone";
 import LinkedAccounts from "./LinkedAccounts";
 import PasswordForm from "./PasswordForm";
-import DangerZone from "./DangerZone";
+import PrivacyToggles from "./PrivacyToggles";
+import ProfileForm from "./ProfileForm";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
 
 const OAUTH_PROVIDERS = [
   { id: "discord", label: "DISCORD", enabled: !!process.env.DISCORD_CLIENT_ID },
-  { id: "google",  label: "GOOGLE",  enabled: !!process.env.GOOGLE_CLIENT_ID },
+  { id: "google", label: "GOOGLE", enabled: !!process.env.GOOGLE_CLIENT_ID },
 ] as const;
 
 export default async function SettingsPage() {
@@ -30,8 +30,18 @@ export default async function SettingsPage() {
       select: { passwordHash: true },
     }),
   ]);
-  const linkedProviders = new Set(accounts.map((a) => a.provider));
+
+  const linkedProviders = new Set(accounts.map((account) => account.provider));
   const hasPassword = !!credentials.passwordHash;
+  const providerRows = OAUTH_PROVIDERS.map((provider) => ({
+    id: provider.id,
+    label: provider.label,
+    enabled: provider.enabled,
+    linked: linkedProviders.has(provider.id),
+  }));
+  const reauthProviders = providerRows
+    .filter((provider) => provider.linked && provider.enabled)
+    .map(({ id, label }) => ({ id, label }));
 
   return (
     <AppShell active="profile" showFriends showRooms>
@@ -40,7 +50,7 @@ export default async function SettingsPage() {
           <UnsavedChangesProvider>
             <div className={styles.head}>
               <Link href="/profile" className={styles.backLink}>
-                ← BACK
+                {"<- BACK"}
               </Link>
               <h1 className={styles.title}>
                 SETT<span>INGS</span>
@@ -68,14 +78,7 @@ export default async function SettingsPage() {
 
             <Sketch variant={1} className={styles.section}>
               <div className={styles.sectionTitle}>LINKED ACCOUNTS</div>
-              <LinkedAccounts
-                providers={OAUTH_PROVIDERS.map((p) => ({
-                  id: p.id,
-                  label: p.label,
-                  enabled: p.enabled,
-                  linked: linkedProviders.has(p.id),
-                }))}
-              />
+              <LinkedAccounts providers={providerRows} />
             </Sketch>
 
             <Sketch variant={2} className={styles.section}>
@@ -85,7 +88,11 @@ export default async function SettingsPage() {
 
             <Sketch variant={3} className={styles.section}>
               <div className={styles.sectionTitle}>DANGER ZONE</div>
-              <DangerZone hasPassword={hasPassword} username={me.username} />
+              <DangerZone
+                hasPassword={hasPassword}
+                username={me.username}
+                reauthProviders={reauthProviders}
+              />
             </Sketch>
           </UnsavedChangesProvider>
         </div>
