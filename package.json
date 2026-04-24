@@ -3,15 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "prepare": "prisma generate",
     "dev": "next dev",
     "build": "next build",
+    "prestart": "node ./scripts/validate-prod-env.mjs",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:local:init": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/beatbattle-pg.ps1 init",
+    "db:local:start": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/beatbattle-pg.ps1 start",
+    "db:local:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/beatbattle-pg.ps1 stop",
+    "db:local:status": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/beatbattle-pg.ps1 status"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
-    "@prisma/adapter-pg": "^7.7.0",
-    "@prisma/client": "^7.7.0",
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
     "bcryptjs": "^3.0.3",
     "ioredis": "^5.10.1",
     "jszip": "^3.10.1",
@@ -33,11 +39,14 @@
     "esbuild": "^0.28.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
-    "prisma": "^7.7.0",
+    "prisma": "^7.8.0",
     "tsx": "^4.21.0",
     "typescript": "^5"
   },
   "pnpm": {
+    "overrides": {
+      "@hono/node-server": "1.19.13"
+    },
     "onlyBuiltDependencies": [
       "prisma",
       "@prisma/engines",

@@ -341,10 +341,11 @@ async function main() {
   const friendUsernames = ["beatsmith", "lofiking", "808queen", "trapzen", "drumgod", "vinyloop"];
   for (const name of friendUsernames) {
     const f = await prisma.user.findUniqueOrThrow({ where: { username: name } });
+    const pairKey = [me.id, f.id].sort().join(":");
     await prisma.friendship.upsert({
-      where: { requesterId_addresseeId: { requesterId: me.id, addresseeId: f.id } },
+      where: { pairKey },
       update: { status: FriendshipStatus.ACCEPTED },
-      create: { requesterId: me.id, addresseeId: f.id, status: FriendshipStatus.ACCEPTED },
+      create: { requesterId: me.id, addresseeId: f.id, pairKey, status: FriendshipStatus.ACCEPTED },
     });
   }
 

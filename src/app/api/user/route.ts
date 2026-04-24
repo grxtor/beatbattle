@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { RATE_LIMITS, rateLimit, tooManyRequests } from "@/lib/rateLimit";
+import { isRecentAuth, reauthRequiredResponse } from "@/lib/sessionSecurity";
 
 const schema = z.object({
   password: z.string().optional(),
@@ -17,7 +18,7 @@ const schema = z.object({
  * Safety:
  *  - Requires `confirm: "DELETE"` in the body so a stray DELETE can't nuke.
  *  - Credentials accounts must also pass `password` for re-auth.
- *  - OAuth-only accounts (no passwordHash) skip password check.
+ *  - OAuth-only accounts must also have a recent authenticated session.
  *  - Rate-limited hard — 3/hour.
  *
  * Cascade behavior:
@@ -63,6 +64,8 @@ export async function DELETE(request: Request) {
     if (!ok) {
       return NextResponse.json({ error: "password is wrong" }, { status: 400 });
     }
+  } else if (!isRecentAuth(session.authenticatedAt)) {
+    return reauthRequiredResponse();
   }
 
   const MAX_TRANSFER_ATTEMPTS = 3;

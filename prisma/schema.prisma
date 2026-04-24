@@ -74,6 +74,7 @@ model User {
   emailVerified DateTime?
   image         String?
   passwordHash  String?
+  sessionVersion Int     @default(0)
   bio           String?   @db.VarChar(200)
   level         Int      @default(1)
   xp            Int      @default(0)
@@ -134,6 +135,7 @@ model Friendship {
   id          String           @id @default(cuid())
   requesterId String
   addresseeId String
+  pairKey     String           @unique
   status      FriendshipStatus @default(PENDING)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt

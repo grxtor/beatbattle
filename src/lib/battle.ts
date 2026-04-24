@@ -228,7 +228,7 @@ async function settleResults(tx: TxClient, roomId: string): Promise<void> {
       select: { genre: true },
     }),
     tx.track.findMany({
-      where: { roomId },
+      where: { roomId, audioUrl: { not: null } },
       select: {
         id: true,
         userId: true,
@@ -316,9 +316,18 @@ async function settleResults(tx: TxClient, roomId: string): Promise<void> {
     distinct: ["voterId"],
   });
   for (const v of voters) {
+    const user = await tx.user.findUniqueOrThrow({
+      where: { id: v.voterId },
+      select: { xp: true },
+    });
+    const newXp = user.xp + VOTE_PARTICIPATION_XP;
     await tx.user.update({
       where: { id: v.voterId },
-      data: { xp: { increment: VOTE_PARTICIPATION_XP } },
+      data: {
+        xp: { increment: VOTE_PARTICIPATION_XP },
+        level: levelForXp(newXp),
+        tier: tierForXp(newXp),
+      },
     });
   }
 
@@ -392,6 +401,7 @@ export async function getRoomState(code: string, viewerId: string | null) {
         orderBy: { joinedAt: "asc" },
       },
       tracks: {
+        where: { audioUrl: { not: null } },
         select: {
           id: true,
           userId: true,

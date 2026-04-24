@@ -1,14 +1,19 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { useToast } from "@/components/Toast";
+import {
+  REAUTH_REQUIRED_CODE,
+  SETTINGS_REDIRECT,
+} from "@/lib/authConstants";
 import styles from "./page.module.css";
 
 type Provider = {
   id: string;
   label: string;
-  enabled: boolean; // has OAuth credentials configured
+  enabled: boolean;
   linked: boolean;
 };
 
@@ -16,58 +21,126 @@ type Props = { providers: Provider[] };
 
 export default function LinkedAccounts({ providers }: Props) {
   const router = useRouter();
+  const toast = useToast();
   const [pending, startTransition] = useTransition();
+  const [oauthBusy, setOauthBusy] = useState<string | null>(null);
+  const [needsReauth, setNeedsReauth] = useState(false);
 
-  const link = (id: string) => signIn(id, { callbackUrl: "/settings" });
+  const reauthLoginHref = `/login?callbackUrl=${encodeURIComponent(
+    SETTINGS_REDIRECT,
+  )}`;
+  const reauthProviders = providers.filter(
+    (provider) => provider.linked && provider.enabled,
+  );
+
+  const startProviderFlow = async (id: string) => {
+    setNeedsReauth(false);
+    setOauthBusy(id);
+    try {
+      await signIn(id, { redirectTo: SETTINGS_REDIRECT });
+    } finally {
+      setOauthBusy(null);
+    }
+  };
 
   const unlink = async (id: string) => {
     const res = await fetch(`/api/user/linked/${id}`, { method: "DELETE" });
-    if (res.ok) startTransition(() => router.refresh());
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      code?: string;
+    };
+
+    if (!res.ok) {
+      if (res.status === 403 && data.code === REAUTH_REQUIRED_CODE) {
+        setNeedsReauth(true);
+        toast.error("Reauthenticate before unlinking an account.");
+      } else {
+        toast.error(data.error ?? "couldn't unlink account");
+      }
+      return;
+    }
+
+    setNeedsReauth(false);
+    startTransition(() => router.refresh());
   };
 
   return (
     <div className={styles.linked}>
-      {providers.map((p) => (
-        <div key={p.id} className={styles.linkRow}>
+      {providers.map((provider) => (
+        <div key={provider.id} className={styles.linkRow}>
           <div className={styles.linkText}>
-            <span className={styles.linkTitle}>{p.label}</span>
+            <span className={styles.linkTitle}>{provider.label}</span>
             <span className={styles.linkSub}>
-              {p.linked
+              {provider.linked
                 ? "Connected"
-                : p.enabled
+                : provider.enabled
                 ? "Not connected"
-                : "Set up required — configure credentials in .env"}
+                : "Set up required - configure credentials in .env"}
             </span>
           </div>
-          {p.linked ? (
+          {provider.linked ? (
             <button
               type="button"
               className={`${styles.linkBtn} ${styles.linkBtnDanger}`}
-              onClick={() => unlink(p.id)}
-              disabled={pending}
+              onClick={() => unlink(provider.id)}
+              disabled={pending || oauthBusy !== null}
             >
               UNLINK
             </button>
-          ) : p.enabled ? (
+          ) : provider.enabled ? (
             <button
               type="button"
               className={styles.linkBtn}
-              onClick={() => link(p.id)}
+              onClick={() => startProviderFlow(provider.id)}
+              disabled={pending || oauthBusy !== null}
             >
-              CONNECT →
+              {oauthBusy === provider.id ? "..." : "CONNECT ->"}
             </button>
           ) : (
             <button
               type="button"
               className={styles.linkBtn}
               disabled
-              title={`Add ${p.id.toUpperCase()}_CLIENT_ID and ${p.id.toUpperCase()}_CLIENT_SECRET to .env.local`}
+              title={`Add ${provider.id.toUpperCase()}_CLIENT_ID and ${provider.id.toUpperCase()}_CLIENT_SECRET to .env.local`}
             >
               UNAVAILABLE
             </button>
           )}
         </div>
       ))}
+
+      {needsReauth && (
+        <div className={styles.linkRow}>
+          <div className={styles.linkText}>
+            <span className={styles.linkTitle}>RECENT LOGIN REQUIRED</span>
+            <span className={styles.linkSub}>
+              Log in again before unlinking an account.
+            </span>
+          </div>
+          <div className={styles.inlineActions}>
+            <button
+              type="button"
+              className={styles.linkBtn}
+              onClick={() => router.push(reauthLoginHref)}
+              disabled={pending || oauthBusy !== null}
+            >
+              {"LOG IN ->"}
+            </button>
+            {reauthProviders.map((provider) => (
+              <button
+                key={provider.id}
+                type="button"
+                className={styles.linkBtn}
+                onClick={() => startProviderFlow(provider.id)}
+                disabled={pending || oauthBusy !== null}
+              >
+                {oauthBusy === provider.id ? "..." : `USE ${provider.label}`}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <p className={styles.footNote}>
         Linking a social account lets you sign in with a single click. Your
         password still works independently.

@@ -1,4 +1,5 @@
 import "server-only";
+import { isIP } from "node:net";
 import { getRedis } from "./redis";
 
 /**
@@ -144,15 +145,48 @@ export async function rateLimit(
   return memoryRateLimit(key, cfg);
 }
 
+function normalizeIp(raw: string | null): string | null {
+  if (!raw) return null;
+
+  let candidate = raw.trim().replace(/^for=/i, "").replace(/^"|"$/g, "");
+  if (!candidate) return null;
+
+  if (candidate.startsWith("[") && candidate.includes("]")) {
+    candidate = candidate.slice(1, candidate.indexOf("]"));
+  } else if (
+    candidate.includes(":") &&
+    candidate.indexOf(":") === candidate.lastIndexOf(":")
+  ) {
+    const [host, port] = candidate.split(":");
+    if (host && port && /^\d+$/.test(port) && isIP(host)) {
+      candidate = host;
+    }
+  }
+
+  return isIP(candidate) ? candidate : null;
+}
+
 /** Pull a best-effort client IP from typical proxy headers. */
 export function clientIpFrom(headers: Headers): string {
-  const fwd = headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0]!.trim();
-  return (
-    headers.get("cf-connecting-ip") ??
-    headers.get("x-real-ip") ??
-    "unknown"
-  );
+  const cfConnectingIp = normalizeIp(headers.get("cf-connecting-ip"));
+  if (cfConnectingIp) return cfConnectingIp;
+
+  const realIp = normalizeIp(headers.get("x-real-ip"));
+  if (realIp) return realIp;
+
+  const forwardedFor = headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    const forwardedIps = forwardedFor
+      .split(",")
+      .map((part) => normalizeIp(part))
+      .filter((part): part is string => !!part);
+
+    if (forwardedIps.length > 0) {
+      return forwardedIps[0];
+    }
+  }
+
+  return "unknown";
 }
 
 /** 429 JSON response with Retry-After header. */
@@ -173,6 +207,7 @@ export function tooManyRequests(retryAfter: number, body: Record<string, unknown
 export const RATE_LIMITS = {
   signup: { max: 5, windowMs: 10 * 60_000 },
   loginAttempt: { max: 10, windowMs: 10 * 60_000 },
+  roomCreate: { max: 5, windowMs: 10 * 60_000 },
   friendRequest: { max: 20, windowMs: 10 * 60_000 },
   roomJoin: { max: 30, windowMs: 60_000 },
   quickMatch: { max: 15, windowMs: 60_000 },
@@ -189,4 +224,5 @@ export const RATE_LIMITS = {
   accountDelete: { max: 3, windowMs: 60 * 60_000 },
   chatSend: { max: 15, windowMs: 10_000 },
   trackUpload: { max: 6, windowMs: 60_000 },
+  samplesZip: { max: 5, windowMs: 60_000 },
 } as const satisfies Record<string, RateLimitConfig>;
