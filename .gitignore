@@ -43,3 +43,6 @@ next-env.d.ts
 
 # uploaded media (user tracks + optional local sample mirror)
 /media/
+
+# dedicated local Postgres cluster (scripts/beatbattle-pg.ps1)
+.beatbattle-pgdata/

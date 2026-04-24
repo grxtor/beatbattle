@@ -1,9 +1,10 @@
 # syntax=docker/dockerfile:1.7
 # Multi-stage build for Next.js 16 + Prisma 7.
 #
-#  - deps   : install all node_modules (prod + dev) with pnpm
-#  - build  : prisma generate + next build (produces .next/standalone)
-#  - runner : tiny alpine image with only the standalone server + prisma bits
+#  - deps           : install all node_modules (prod + dev) with pnpm
+#  - build          : prisma generate + next build (produces .next/standalone)
+#  - prisma-runtime : install only the Prisma runtime/CLI tree needed at boot
+#  - runner         : tiny alpine image with the standalone server + slim Prisma bits
 #
 # Build:   docker build -t beatbattle:latest .
 # Run:     docker run --env-file .env -p 3000:3000 -v /var/lib/beatbattle/media:/media beatbattle:latest
@@ -45,6 +46,19 @@ RUN pnpm exec esbuild prisma/seed.ts \
     --external:dotenv \
     --external:pg
 
+# ---------- prisma-runtime ----------
+FROM node:${NODE_VERSION} AS prisma-runtime
+RUN corepack enable && corepack prepare pnpm@10 --activate
+WORKDIR /prisma-runtime
+
+COPY --from=build /app/package.json ./package.base.json
+COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=build /app/prisma ./prisma
+
+RUN node -e "const fs = require('fs'); const base = JSON.parse(fs.readFileSync('package.base.json', 'utf8')); const runtimePkg = { name: 'beatbattle-prisma-runtime', private: true, dependencies: { '@prisma/adapter-pg': base.dependencies['@prisma/adapter-pg'], '@prisma/client': base.dependencies['@prisma/client'], prisma: base.devDependencies.prisma }, pnpm: base.pnpm }; fs.writeFileSync('package.json', JSON.stringify(runtimePkg, null, 2));"
+
+RUN pnpm install --frozen-lockfile --prod
+
 # ---------- runner ----------
 FROM node:${NODE_VERSION} AS runner
 WORKDIR /app
@@ -69,13 +83,11 @@ COPY --from=build --chown=beatbattle:nodejs /app/public ./public
 # Prisma schema + migrations + the esbuild-bundled seed.
 COPY --from=build --chown=beatbattle:nodejs /app/prisma ./prisma
 
-# Overlay the full node_modules from the build stage on top of the standalone
-# tree. Reason: pnpm's node_modules is full of symlinks into .pnpm, and Docker
-# COPY dereferences them — so cherry-picking `node_modules/prisma` alone loses
-# `@prisma/engines` (a peer dep resolved via nested symlinks). Copying the
-# entire tree preserves all resolution paths. The extra weight is a superset
-# of what standalone already ships, not a parallel install.
-COPY --from=build --chown=beatbattle:nodejs /app/node_modules ./node_modules
+# Copy only the Prisma runtime/CLI install needed by the app and entrypoint.
+COPY --from=prisma-runtime --chown=beatbattle:nodejs /prisma-runtime/node_modules ./node_modules
+
+# Shared startup validation used by both docker-entrypoint and pnpm start.
+COPY --chown=beatbattle:nodejs scripts/validate-prod-env.mjs ./scripts/validate-prod-env.mjs
 
 # Entrypoint runs prisma migrate deploy, then exec's the Next server.
 COPY --chown=beatbattle:nodejs docker-entrypoint.sh ./

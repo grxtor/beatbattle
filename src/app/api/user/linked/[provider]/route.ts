@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { auth } from "@/auth";
+import { auth, unstable_update } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { RATE_LIMITS, rateLimit, tooManyRequests } from "@/lib/rateLimit";
+import { isRecentAuth, reauthRequiredResponse } from "@/lib/sessionSecurity";
 
 export async function DELETE(
   _req: NextRequest,
@@ -11,6 +12,11 @@ export async function DELETE(
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauth" }, { status: 401 });
   }
+
+  if (!isRecentAuth(session.authenticatedAt)) {
+    return reauthRequiredResponse();
+  }
+
   const rl = await rateLimit(`userwrite:${session.user.id}`, RATE_LIMITS.profileWrite);
   if (!rl.ok) return tooManyRequests(rl.retryAfter);
   const { provider } = await ctx.params;
@@ -39,8 +45,17 @@ export async function DELETE(
     );
   }
 
-  await prisma.account.deleteMany({
+  const deleted = await prisma.account.deleteMany({
     where: { userId: session.user.id, provider },
   });
+
+  if (deleted.count > 0) {
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { sessionVersion: { increment: 1 } },
+    });
+    await unstable_update({ authenticatedAt: Date.now() });
+  }
+
   return NextResponse.json({ ok: true });
 }

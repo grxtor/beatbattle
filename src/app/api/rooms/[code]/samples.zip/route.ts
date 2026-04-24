@@ -3,6 +3,7 @@ import JSZip from "jszip";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { readMediaFile, MEDIA_PUBLIC_BASE } from "@/lib/media";
+import { RATE_LIMITS, rateLimit, tooManyRequests } from "@/lib/rateLimit";
 
 /**
  * Bundle this room's 4 rolled samples into a ZIP for the producer to drop
@@ -17,7 +18,7 @@ import { readMediaFile, MEDIA_PUBLIC_BASE } from "@/lib/media";
  */
 export async function GET(
   _req: NextRequest,
-  ctx: { params: Promise<{ code: string }> },
+  ctx: RouteContext<"/api/rooms/[code]/samples.zip">,
 ) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -43,6 +44,12 @@ export async function GET(
   if (room.players.length === 0) {
     return new Response("not a member of this room", { status: 403 });
   }
+
+  const zipLimit = await rateLimit(
+    `sampleszip:${session.user.id}:${room.id}`,
+    RATE_LIMITS.samplesZip,
+  );
+  if (!zipLimit.ok) return tooManyRequests(zipLimit.retryAfter);
 
   const samples = Array.isArray(room.samples) ? (room.samples as Array<{
     name?: string;

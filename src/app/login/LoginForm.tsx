@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Sketch from "@/components/Sketch";
 import { useToast } from "@/components/Toast";
+import { sanitizeRedirectTarget } from "@/lib/redirects";
 import styles from "./page.module.css";
 
 type Provider = { id: "discord" | "google"; label: string; mark: string };
@@ -19,7 +20,10 @@ function FormInner({ providers, mode }: Props) {
   const router = useRouter();
   const toast = useToast();
   const search = useSearchParams();
-  const callbackUrl = search.get("callbackUrl") ?? "/";
+  const callbackUrl = sanitizeRedirectTarget(
+    search.get("callbackUrl"),
+    typeof window !== "undefined" ? window.location.origin : undefined,
+  );
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -29,10 +33,11 @@ function FormInner({ providers, mode }: Props) {
 
   const isSignup = mode === "signup";
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError(null);
     setLoading(true);
+
     try {
       if (isSignup) {
         const res = await fetch("/api/auth/signup", {
@@ -51,17 +56,23 @@ function FormInner({ providers, mode }: Props) {
           return;
         }
       }
+
       const login = await signIn("credentials", {
         username: username.trim().toLowerCase(),
         password,
         redirect: false,
       });
       if (!login?.ok) {
-        setError(isSignup ? "signed up but couldn't log in" : "invalid username or password");
+        setError(
+          isSignup
+            ? "signed up but couldn't log in"
+            : "invalid username or password",
+        );
         if (isSignup) router.replace("/login");
         return;
       }
-      toast.success(isSignup ? "Welcome producer 🎧" : "Welcome back");
+
+      toast.success(isSignup ? "Welcome producer" : "Welcome back");
       router.replace(callbackUrl);
       router.refresh();
     } catch {
@@ -74,22 +85,24 @@ function FormInner({ providers, mode }: Props) {
   const oauth = async (id: string) => {
     setOauthBusy(id);
     try {
-      await signIn(id, { callbackUrl });
+      await signIn(id, { redirectTo: callbackUrl });
     } finally {
       setOauthBusy(null);
     }
   };
-
-  const enabledProviders = providers;
 
   return (
     <main className={styles.page}>
       <Sketch variant={1} className={styles.card}>
         <h1 className={styles.title}>
           {isSignup ? (
-            <>SIGN <span>UP</span></>
+            <>
+              SIGN <span>UP</span>
+            </>
           ) : (
-            <>LOG <span>IN</span></>
+            <>
+              LOG <span>IN</span>
+            </>
           )}
         </h1>
         <p className={styles.sub}>
@@ -104,7 +117,7 @@ function FormInner({ providers, mode }: Props) {
             <input
               className={styles.input}
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(event) => setUsername(event.target.value)}
               placeholder="@producer"
               autoComplete="username"
               autoFocus
@@ -121,7 +134,7 @@ function FormInner({ providers, mode }: Props) {
               className={styles.input}
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(event) => setPassword(event.target.value)}
               autoComplete={isSignup ? "new-password" : "current-password"}
               required
               minLength={6}
@@ -131,28 +144,28 @@ function FormInner({ providers, mode }: Props) {
           {error && <span className={styles.error}>{error}</span>}
 
           <button type="submit" className={styles.submit} disabled={loading}>
-            {loading ? "..." : isSignup ? "CREATE →" : "LOG IN →"}
+            {loading ? "..." : isSignup ? "CREATE ->" : "LOG IN ->"}
           </button>
         </form>
 
-        {enabledProviders.length > 0 && (
+        {providers.length > 0 && (
           <>
             <div className={styles.divider}>
               <span>OR CONTINUE WITH</span>
             </div>
             <div className={styles.oauthList}>
-              {enabledProviders.map((p) => (
+              {providers.map((provider) => (
                 <button
-                  key={p.id}
+                  key={provider.id}
                   type="button"
                   className={styles.oauthBtn}
-                  onClick={() => oauth(p.id)}
+                  onClick={() => oauth(provider.id)}
                   disabled={oauthBusy !== null}
                 >
                   <span className={styles.oauthMark} aria-hidden="true">
-                    {p.mark}
+                    {provider.mark}
                   </span>
-                  {oauthBusy === p.id ? "..." : p.label}
+                  {oauthBusy === provider.id ? "..." : provider.label}
                 </button>
               ))}
             </div>
@@ -164,14 +177,14 @@ function FormInner({ providers, mode }: Props) {
             <>
               <span>have an account?</span>
               <Link href="/login" className={styles.altLink}>
-                LOG IN →
+                {"LOG IN ->"}
               </Link>
             </>
           ) : (
             <>
               <span>new here?</span>
               <Link href="/signup" className={styles.altLink}>
-                CREATE ACCOUNT →
+                {"CREATE ACCOUNT ->"}
               </Link>
             </>
           )}
