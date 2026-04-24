@@ -135,6 +135,7 @@ model Friendship {
   id          String           @id @default(cuid())
   requesterId String
   addresseeId String
+  pairKey     String           @unique
   status      FriendshipStatus @default(PENDING)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt

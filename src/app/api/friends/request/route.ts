@@ -10,6 +10,10 @@ const schema = z.object({
   username: z.string().min(2).max(32),
 });
 
+function friendshipPairKey(a: string, b: string): string {
+  return [a, b].sort().join(":");
+}
+
 /**
  * Send a friend request.
  *
@@ -51,16 +55,10 @@ export async function POST(request: Request) {
   }
 
   try {
+    const pairKey = friendshipPairKey(me, user.id);
     const friendship = await prisma.$transaction(async (tx) => {
-      // Look for any relationship in either direction under a tx so two
-      // requesters can't both insert "PENDING" rows for the same pair.
-      const existing = await tx.friendship.findFirst({
-        where: {
-          OR: [
-            { requesterId: me, addresseeId: user.id },
-            { requesterId: user.id, addresseeId: me },
-          ],
-        },
+      const existing = await tx.friendship.findUnique({
+        where: { pairKey },
         select: { id: true, status: true, requesterId: true },
       });
 
@@ -81,7 +79,7 @@ export async function POST(request: Request) {
       }
 
       const fresh = await tx.friendship.create({
-        data: { requesterId: me, addresseeId: user.id, status: "PENDING" },
+        data: { requesterId: me, addresseeId: user.id, pairKey, status: "PENDING" },
       });
       return { friendship: fresh, autoAccepted: false };
     });

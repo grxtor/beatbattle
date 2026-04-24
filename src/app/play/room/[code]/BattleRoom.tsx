@@ -70,6 +70,9 @@ const VOTE_OPTIONS: { label: VoteRating; display: string; xp: number }[] = [
   { label: "VERY_BAD",  display: "VERY BAD",  xp: 0 },
 ];
 
+const MAX_UPLOAD_BYTES = 30 * 1024 * 1024;
+const ACCEPTED_MIMES = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/ogg"];
+
 type BattleRoomProps = { code: string };
 
 function fmtCountdown(seconds: number): string {
@@ -213,9 +216,6 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
   const [uploadPct, setUploadPct] = useState(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const MAX_UPLOAD_BYTES = 30 * 1024 * 1024;
-  const ACCEPTED_MIMES = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/ogg"];
-
   const pickFile = () => {
     if (uploadBusy || me?.submitted) return;
     fileInputRef.current?.click();
@@ -277,7 +277,7 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     },
-    [code, load, toast, me?.submitted],
+    [code, load, toast],
   );
 
   const onFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {

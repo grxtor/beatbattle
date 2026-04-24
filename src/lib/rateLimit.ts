@@ -182,7 +182,7 @@ export function clientIpFrom(headers: Headers): string {
       .filter((part): part is string => !!part);
 
     if (forwardedIps.length > 0) {
-      return forwardedIps[forwardedIps.length - 1];
+      return forwardedIps[0];
     }
   }
 

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { RATE_LIMITS, rateLimit, tooManyRequests } from "@/lib/rateLimit";
@@ -80,19 +81,17 @@ export async function POST(
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
-  // Upsert first so we have a stable trackId for the filename.
-  const track = await prisma.track.upsert({
+  const existingTrack = await prisma.track.findUnique({
     where: { roomId_userId: { roomId: room.id, userId: me } },
-    update: {},
-    create: { roomId: room.id, userId: me, audioUrl: null },
     select: { id: true, audioUrl: true },
   });
+  const trackId = existingTrack?.id ?? crypto.randomUUID();
 
   let written;
   try {
     written = await writeTrackFile({
       roomId: room.id,
-      trackId: track.id,
+      trackId,
       buffer,
       mime: file.type,
     });
@@ -112,10 +111,17 @@ export async function POST(
 
   // Swap audioUrl on the track row; only delete the previous file after the
   // DB is updated so a concurrent reader never sees a dead URL.
-  const previousUrl = track.audioUrl;
-  await prisma.track.update({
-    where: { id: track.id },
-    data: { audioUrl: written.publicUrl },
+  const previousUrl = existingTrack?.audioUrl;
+  const track = await prisma.track.upsert({
+    where: { roomId_userId: { roomId: room.id, userId: me } },
+    update: { audioUrl: written.publicUrl },
+    create: {
+      id: trackId,
+      roomId: room.id,
+      userId: me,
+      audioUrl: written.publicUrl,
+    },
+    select: { id: true },
   });
 
   if (previousUrl && previousUrl !== written.publicUrl) {
