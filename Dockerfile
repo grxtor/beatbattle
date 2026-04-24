@@ -55,9 +55,9 @@ COPY --from=build /app/package.json ./package.base.json
 COPY --from=build /app/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=build /app/prisma ./prisma
 
-RUN node -e "const fs = require('fs'); const base = JSON.parse(fs.readFileSync('package.base.json', 'utf8')); const runtimePkg = { name: 'beatbattle-prisma-runtime', private: true, dependencies: { '@prisma/adapter-pg': base.dependencies['@prisma/adapter-pg'], '@prisma/client': base.dependencies['@prisma/client'], prisma: base.devDependencies.prisma }, pnpm: base.pnpm }; fs.writeFileSync('package.json', JSON.stringify(runtimePkg, null, 2));"
+RUN node -e "const fs = require('fs'); const base = JSON.parse(fs.readFileSync('package.base.json', 'utf8')); const runtimePkg = { name: 'beatbattle-prisma-runtime', private: true, dependencies: { '@prisma/adapter-pg': base.dependencies['@prisma/adapter-pg'], '@prisma/client': base.dependencies['@prisma/client'], bcryptjs: base.dependencies.bcryptjs, dotenv: base.devDependencies.dotenv, pg: base.dependencies.pg, prisma: base.devDependencies.prisma }, pnpm: base.pnpm }; fs.writeFileSync('package.json', JSON.stringify(runtimePkg, null, 2));"
 
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --no-frozen-lockfile --prod
 
 # ---------- runner ----------
 FROM node:${NODE_VERSION} AS runner
