@@ -4,6 +4,7 @@ import SketchDefs from "@/components/SketchDefs";
 import PresencePing from "@/components/PresencePing";
 import { ToastProvider } from "@/components/Toast";
 import { AudioMuteProvider } from "@/components/AudioMute";
+import MascotProvider from "@/components/MascotProvider";
 import "./globals.css";
 
 const pixelFont = Press_Start_2P({
@@ -36,7 +37,9 @@ export default function RootLayout({
         <SketchDefs />
         <PresencePing />
         <AudioMuteProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <MascotProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </MascotProvider>
         </AudioMuteProvider>
       </body>
     </html>

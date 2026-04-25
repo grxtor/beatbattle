@@ -1,0 +1,541 @@
+/* Mascot — pure SVG, per-part CSS animation.
+   All transforms use `transform: ...` shorthand + per-part pixel
+   `transform-origin` (set inline by the component).
+
+   Moods: idle | happy | angry | walking | thinking | loading | peek
+   Loading aliases Walking (same keyframes) and adds thought dots overlay.
+
+   Cute-animation principles applied here:
+     • Squash & stretch on every bounce / breath
+     • Secondary motion — leaf lags stem + has flutter layer
+     • Double blink — two quick blinks with a micro-open between them
+     • Breathing — subtle scaleY so the mascot is never "dead still"
+     • Eye sparkle — secondary white highlight pulses on happy/peek
+     • Anticipation — happy bounce squats before the jump
+     • Mood pop — mood changes trigger a short squash transition
+     • Entry bounce — first render plays a springy scale-in
+     • Hover glow — drop-shadow layers up on hover
+     • Peek salute — hand travels to forehead with long rotate
+*/
+
+/* ------------------------------------------------------------------
+   Base — root element
+   ------------------------------------------------------------------ */
+
+.root {
+  display: inline-block;
+  overflow: visible;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+
+  /* Entry state — flipped on after first paint via .mounted */
+  opacity: 0;
+  transform: scale(0.55);
+  transform-origin: 50% 65%;
+  transition:
+    opacity 380ms ease-out,
+    transform 620ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.root.mounted {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.root.moodPop {
+  animation: moodPopAnim 0.32s ease-out;
+}
+@keyframes moodPopAnim {
+  0%   { transform: scale(1); }
+  28%  { transform: scale(0.88, 1.08); }
+  55%  { transform: scale(1.06, 0.94); }
+  100% { transform: scale(1); }
+}
+
+.root.withShadow {
+  filter: drop-shadow(0 4px 0 rgba(176, 80, 16, 0.25));
+  transition:
+    opacity 380ms ease-out,
+    transform 620ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    filter 240ms ease-out;
+}
+.root.withShadow:hover {
+  filter:
+    drop-shadow(0 4px 0 rgba(176, 80, 16, 0.3))
+    drop-shadow(0 0 12px rgba(255, 170, 70, 0.55))
+    drop-shadow(0 0 4px rgba(255, 210, 140, 0.45));
+}
+
+.body {
+  transition: filter 350ms ease-out;
+}
+
+/* Static fallback */
+.static,
+.static .stage,
+.static .body,
+.static .leftArm,
+.static .rightArm,
+.static .leftLeg,
+.static .rightLeg,
+.static .stem,
+.static .leaf,
+.static .leftEye,
+.static .rightEye,
+.static .leftEyeClosed,
+.static .rightEyeClosed,
+.static .eyeSparkleLeft,
+.static .eyeSparkleRight,
+.static .leftBrow,
+.static .rightBrow,
+.static .leftBlush,
+.static .rightBlush,
+.static .mouth,
+.static .mouthHappy,
+.static .mouthFrown,
+.static .steam,
+.static .thoughtDots {
+  animation: none !important;
+  transform: none !important;
+}
+.static {
+  opacity: 1 !important;
+  transition: none !important;
+}
+
+/* Default-hidden accessories. */
+.leftBrow,
+.rightBrow,
+.leftBlush,
+.rightBlush,
+.leftEyeClosed,
+.rightEyeClosed,
+.eyeSparkleLeft,
+.eyeSparkleRight,
+.steam,
+.thoughtDots {
+  opacity: 0;
+}
+
+.steam ellipse,
+.thoughtDots ellipse {
+  opacity: 0;
+}
+
+.stage {
+  transform-origin: 64px 106px;
+  transform-box: fill-box;
+}
+
+/* ------------------------------------------------------------------
+   MOUTH VISIBILITY — HARD GATE.
+
+   Default: ALL three mouth variants are `display: none`. A mouth only
+   appears when its specific mood explicitly turns it on below. This is
+   a hard guarantee — even if JSX leaks or HMR caches a stale DOM, the
+   browser cannot paint two mouths at the same time.
+   ------------------------------------------------------------------ */
+
+.mouth,
+.mouthHappy,
+.mouthFrown {
+  display: none;
+}
+
+/* idle = single neutral mouth (no cross-fade) */
+[data-mood="idle"] .mouth             { display: block; }
+
+/* happy / peek = only the happy mouth */
+[data-mood="happy"] .mouthHappy,
+[data-mood="peek"]  .mouthHappy       { display: block; }
+
+/* angry = only the rage frown */
+[data-mood="angry"] .mouthFrown       { display: block; }
+
+/* walking / thinking / loading = neutral mouth */
+[data-mood="walking"]  .mouth,
+[data-mood="thinking"] .mouth,
+[data-mood="loading"]  .mouth         { display: block; }
+
+/* mouthHappy starts transparent so the idle cross-fade keyframe drives it. */
+.mouthHappy,
+.mouthFrown {
+  opacity: 0;
+}
+
+
+/* ==================================================================
+   IDLE — breathing, double blink, gentle sway, flutter, rare wave
+   ================================================================== */
+
+[data-mood="idle"] .stage       { animation: idleBreathe 3.6s ease-in-out infinite; }
+[data-mood="idle"] .stem        { animation: stemSway   3.8s ease-in-out infinite; }
+[data-mood="idle"] .leaf {
+  animation:
+    leafSway    3.8s ease-in-out infinite -0.18s,
+    leafFlutter 0.85s ease-in-out infinite;
+  animation-composition: add;
+}
+[data-mood="idle"] .leftEye,
+[data-mood="idle"] .rightEye        { animation: doubleBlinkOpen   6.2s infinite; }
+[data-mood="idle"] .leftEyeClosed,
+[data-mood="idle"] .rightEyeClosed  { animation: doubleBlinkClosed 6.2s infinite; }
+[data-mood="idle"] .leftArm     { animation: armIdle 4.2s ease-in-out infinite; }
+[data-mood="idle"] .rightArm    { animation: rightArmIdleWave 16s ease-in-out infinite; }
+
+@keyframes idleBreathe {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  45%      { transform: translateY(-2px) scale(1.01, 1.025); }
+  75%      { transform: translateY(0)    scale(1.02, 0.99); }
+}
+@keyframes stemSway {
+  0%, 100% { transform: rotate(0deg); }
+  35%      { transform: rotate(-1.5deg); }
+  75%      { transform: rotate(1.2deg); }
+}
+@keyframes leafSway {
+  0%, 100% { transform: rotate(0deg); }
+  35%      { transform: rotate(-4deg); }
+  75%      { transform: rotate(3deg); }
+}
+@keyframes leafFlutter {
+  0%, 100% { transform: rotate(0deg); }
+  50%      { transform: rotate(-0.9deg); }
+}
+@keyframes doubleBlinkOpen {
+  0%, 84%       { opacity: 1; }
+  85%, 88%      { opacity: 0; }
+  89%, 91%      { opacity: 1; }
+  92%, 94%      { opacity: 0; }
+  95%, 100%     { opacity: 1; }
+}
+@keyframes doubleBlinkClosed {
+  0%, 84%       { opacity: 0; }
+  85%, 88%      { opacity: 1; }
+  89%, 91%      { opacity: 0; }
+  92%, 94%      { opacity: 1; }
+  95%, 100%     { opacity: 0; }
+}
+@keyframes armIdle {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-1px); }
+}
+/* Rare wave at 87-94% of a 16s cycle. Rotate +35° on CW so the outer
+   tip of the (now longer) arm swings up and out — classic "hello wave". */
+@keyframes rightArmIdleWave {
+  0%, 85%, 100% { transform: translateY(0)    rotate(0deg); }
+  25%, 65%      { transform: translateY(-1px) rotate(0deg); }
+  87%           { transform: translateY(-1px) rotate(35deg); }
+  90%           { transform: translateY(-1px) rotate(10deg); }
+  92%           { transform: translateY(-1px) rotate(35deg); }
+  94%           { transform: translateY(-1px) rotate(10deg); }
+  96%           { transform: translateY(0)    rotate(0deg); }
+}
+
+
+/* ==================================================================
+   HAPPY — anticipation → stretch → squash bounce
+   ================================================================== */
+
+[data-mood="happy"] .stage       { animation: happyBounce 0.95s cubic-bezier(0.3, 0.9, 0.5, 1.15) infinite; }
+[data-mood="happy"] .mouthHappy  { opacity: 1 !important; display: block; animation: smilePulse 0.95s ease-in-out infinite; }
+[data-mood="happy"] .leftBlush   { opacity: 0.9; animation: blushPulse 1.9s ease-in-out infinite; }
+[data-mood="happy"] .rightBlush  { opacity: 0.9; animation: blushPulse 1.9s ease-in-out infinite; }
+[data-mood="happy"] .leftArm     { animation: happyArmL 0.95s cubic-bezier(0.3, 0.9, 0.5, 1.15) infinite 0.05s; }
+[data-mood="happy"] .rightArm    { animation: happyArmR 0.95s cubic-bezier(0.3, 0.9, 0.5, 1.15) infinite 0.05s; }
+[data-mood="happy"] .stem        { animation: stemSway 1.0s ease-in-out infinite; }
+[data-mood="happy"] .leaf {
+  animation:
+    leafFlop    1.0s ease-in-out infinite -0.12s,
+    leafFlutter 0.62s ease-in-out infinite;
+  animation-composition: add;
+}
+[data-mood="happy"] .leftEye,
+[data-mood="happy"] .rightEye        { animation: doubleBlinkOpen   4.2s infinite; }
+[data-mood="happy"] .leftEyeClosed,
+[data-mood="happy"] .rightEyeClosed  { animation: doubleBlinkClosed 4.2s infinite; }
+[data-mood="happy"] .eyeSparkleLeft  { opacity: 1; animation: sparklePulse 1.9s ease-in-out infinite; }
+[data-mood="happy"] .eyeSparkleRight { opacity: 1; animation: sparklePulse 1.9s ease-in-out infinite 0.3s; }
+
+@keyframes happyBounce {
+  0%   { transform: translateY(0)    scale(1,    1); }
+  12%  { transform: translateY(1px)  scale(1.08, 0.92); }
+  50%  { transform: translateY(-8px) scale(0.94, 1.08); }
+  80%  { transform: translateY(0)    scale(1.08, 0.92); }
+  100% { transform: translateY(0)    scale(1,    1); }
+}
+/* Arms — rotate-only. Longer arms mean ±25° reads stronger than before;
+   use that rather than bumping translate which would separate from body. */
+@keyframes happyArmL {
+  0%, 100% { transform: rotate(-10deg); }
+  12%      { transform: rotate(-5deg); }
+  50%      { transform: rotate(-28deg); }
+  80%      { transform: rotate(-8deg); }
+}
+@keyframes happyArmR {
+  0%, 100% { transform: rotate(10deg); }
+  12%      { transform: rotate(5deg); }
+  50%      { transform: rotate(28deg); }
+  80%      { transform: rotate(8deg); }
+}
+@keyframes smilePulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.08); }
+}
+@keyframes blushPulse {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.12); }
+}
+@keyframes sparklePulse {
+  0%, 100% { opacity: 0; transform: scale(0.3); }
+  40%, 70% { opacity: 1; transform: scale(1.4); }
+}
+@keyframes leafFlop {
+  0%, 100% { transform: rotate(0deg); }
+  30%      { transform: rotate(-8deg); }
+  70%      { transform: rotate(6deg); }
+}
+
+
+/* ==================================================================
+   ANGRY — puff up, fast shake + stomp, mouth quiver, steam drift
+   ================================================================== */
+
+[data-mood="angry"] .stage       {
+  animation: angryShake 0.28s infinite, angryPuff 0.9s ease-in-out infinite;
+  animation-composition: add;
+}
+[data-mood="angry"] .body        { filter: hue-rotate(-12deg) saturate(1.25) brightness(0.95); }
+[data-mood="angry"] .mouthFrown  { opacity: 1 !important; display: block !important; visibility: visible !important; animation: mouthQuiver 0.16s infinite; }
+[data-mood="angry"] .leftBrow    { opacity: 1; animation: browTense 0.28s infinite; }
+[data-mood="angry"] .rightBrow   { opacity: 1; animation: browTense 0.28s infinite; }
+[data-mood="angry"] .leftBlush   { opacity: 1; }
+[data-mood="angry"] .rightBlush  { opacity: 1; }
+[data-mood="angry"] .stem        { transform: rotate(22deg); }
+[data-mood="angry"] .leaf        { animation: leafRage 0.14s infinite; }
+[data-mood="angry"] .steam       { opacity: 1; }
+[data-mood="angry"] .steam ellipse { animation: steamFloat 1.4s ease-out infinite; }
+[data-mood="angry"] .leftArm     { animation: angryArmShake 0.28s infinite; }
+[data-mood="angry"] .rightArm    { animation: angryArmShake 0.28s infinite 0.14s; }
+
+@keyframes angryShake {
+  0%, 100% { transform: translate(0, 0); }
+  25%      { transform: translate(-1px, 1px); }
+  75%      { transform: translate(1px, 0); }
+}
+@keyframes angryPuff {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
+@keyframes mouthQuiver {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(-0.5px); }
+}
+@keyframes browTense {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-0.5px); }
+}
+@keyframes leafRage {
+  0%, 100% { transform: rotate(22deg); }
+  25%      { transform: rotate(25deg); }
+  75%      { transform: rotate(20deg); }
+}
+@keyframes steamFloat {
+  0%   { opacity: 0;    transform: translate(0, 0)      scale(0.8); }
+  18%  { opacity: 0.85; transform: translate(0, -4px)   scale(1);   }
+  70%  { opacity: 0.55; transform: translate(3px, -14px) scale(1.1); }
+  100% { opacity: 0;    transform: translate(5px, -22px) scale(1.3); }
+}
+@keyframes angryArmShake {
+  0%, 100% { transform: translate(0, 0); }
+  50%      { transform: translate(0, -1px); }
+}
+
+
+/* ==================================================================
+   WALKING + LOADING — legs alternate, arms swing, body tilts, mini lean.
+   Loading reuses walking keyframes and adds a thought-dots overlay.
+   ================================================================== */
+
+[data-mood="walking"] .stage,
+[data-mood="loading"] .stage {
+  animation:
+    walkBob  0.8s ease-in-out infinite,
+    walkTilt 0.8s ease-in-out infinite,
+    walkLean 0.8s ease-in-out infinite;
+  animation-composition: add;
+}
+[data-mood="walking"] .leftLeg,
+[data-mood="loading"] .leftLeg   { animation: stepLeft  0.8s infinite; }
+[data-mood="walking"] .rightLeg,
+[data-mood="loading"] .rightLeg  { animation: stepRight 0.8s infinite; }
+[data-mood="walking"] .leftArm,
+[data-mood="loading"] .leftArm   { animation: swingArmA 0.8s infinite; }
+[data-mood="walking"] .rightArm,
+[data-mood="loading"] .rightArm  { animation: swingArmB 0.8s infinite; }
+[data-mood="walking"] .stem,
+[data-mood="loading"] .stem      { animation: stemSway 1.5s ease-in-out infinite; }
+[data-mood="walking"] .leaf,
+[data-mood="loading"] .leaf {
+  animation:
+    leafSway    1.5s ease-in-out infinite -0.12s,
+    leafWalkBob 0.8s ease-in-out infinite,
+    leafFlutter 0.5s ease-in-out infinite;
+  animation-composition: add;
+}
+
+/* Loading extra: thought dots wave above head */
+[data-mood="loading"] .thoughtDots { opacity: 1; }
+[data-mood="loading"] .thoughtDots ellipse {
+  animation: loadingDotsWave 1.2s ease-in-out infinite;
+}
+
+@keyframes walkBob {
+  0%, 100% { transform: translateY(0); }
+  25%, 75% { transform: translateY(-2px); }
+}
+@keyframes walkTilt {
+  0%, 100% { transform: rotate(0deg); }
+  25%      { transform: rotate(-1.8deg); }
+  75%      { transform: rotate(1.8deg); }
+}
+/* Micro forward-back sway — sells the "leaning into the step" feel. */
+@keyframes walkLean {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-0.6px); }
+  75%      { transform: translateX(0.6px); }
+}
+@keyframes leafWalkBob {
+  0%, 100% { transform: rotate(0deg); }
+  25%      { transform: rotate(-2.5deg); }
+  75%      { transform: rotate(2.5deg); }
+}
+@keyframes stepLeft {
+  0%, 50%, 100% { transform: translateY(0); }
+  25%           { transform: translateY(-6px); }
+}
+@keyframes stepRight {
+  0%, 50%, 100% { transform: translateY(0); }
+  75%           { transform: translateY(-6px); }
+}
+/* Arms swing ±16° — the longer arm amplifies the visible arc. */
+@keyframes swingArmA {
+  0%, 50%, 100% { transform: translateY(0) rotate(0deg); }
+  75%           { transform: translateY(-3px) rotate(-16deg); }
+}
+@keyframes swingArmB {
+  0%, 50%, 100% { transform: translateY(0) rotate(0deg); }
+  25%           { transform: translateY(-3px) rotate(16deg); }
+}
+@keyframes loadingDotsWave {
+  0%, 100% { opacity: 0.2; transform: translateY(0)    scale(0.7); }
+  50%      { opacity: 1;   transform: translateY(-2px) scale(1.15); }
+}
+
+
+/* ==================================================================
+   THINKING — head tilt, chin tap, thought dots, leaf droop
+   ================================================================== */
+
+[data-mood="thinking"] .stage       { animation: thinkPose 3.2s ease-in-out infinite; }
+[data-mood="thinking"] .stem        { animation: stemSway 4s ease-in-out infinite; }
+[data-mood="thinking"] .leaf {
+  animation:
+    leafDroop   4s ease-in-out infinite -0.2s,
+    leafFlutter 1.2s ease-in-out infinite;
+  animation-composition: add;
+}
+/* Right arm pose for thinking — with the longer arm, rotate -90° brings
+   the hand up near the chin; chin-tap adds a tiny translateY pulse. */
+[data-mood="thinking"] .rightArm    { animation: chinTap 1.4s ease-in-out infinite; }
+[data-mood="thinking"] .leftBrow    { opacity: 0.65; transform: translateY(1px); }
+[data-mood="thinking"] .leftEye,
+[data-mood="thinking"] .rightEye        { animation: doubleBlinkOpen   4.2s infinite; }
+[data-mood="thinking"] .leftEyeClosed,
+[data-mood="thinking"] .rightEyeClosed  { animation: doubleBlinkClosed 4.2s infinite; }
+[data-mood="thinking"] .thoughtDots { opacity: 1; }
+[data-mood="thinking"] .thoughtDots ellipse {
+  animation: thoughtBob 2.1s ease-in-out infinite;
+}
+
+@keyframes thinkPose {
+  0%, 100% { transform: rotate(-4deg) scale(1); }
+  50%      { transform: rotate(-3.5deg) scale(1.015); }
+}
+@keyframes leafDroop {
+  0%, 100% { transform: rotate(8deg); }
+  50%      { transform: rotate(11deg); }
+}
+/* Rotate -90° swings the long right arm up so its hand sits at face level;
+   pulse translateY to simulate chin-tapping. */
+@keyframes chinTap {
+  0%, 100% { transform: rotate(-90deg) translateY(0); }
+  50%      { transform: rotate(-90deg) translateY(-2px); }
+}
+@keyframes thoughtBob {
+  0%, 100% { opacity: 0.3; transform: translateY(0) scale(0.85); }
+  50%      { opacity: 1;   transform: translateY(-2px) scale(1.1); }
+}
+
+
+/* ==================================================================
+   PEEK — hand-to-forehead salute pose. Subtle head tilt, sparkle pulse.
+   Intended for page-level hover (e.g., play button).
+   ================================================================== */
+
+[data-mood="peek"] .stage         { animation: peekPose 2.2s ease-in-out infinite; }
+[data-mood="peek"] .stem          { animation: stemSway 2.4s ease-in-out infinite; }
+[data-mood="peek"] .leaf {
+  animation:
+    leafSway    2.4s ease-in-out infinite -0.18s,
+    leafFlutter 0.7s ease-in-out infinite;
+  animation-composition: add;
+}
+/* Right arm curls up to forehead — long rotate that only works with the
+   extended forearm. Hand lands roughly at eye-level. */
+[data-mood="peek"] .rightArm      { animation: peekSalute 2.2s ease-in-out infinite; }
+[data-mood="peek"] .leftArm       { animation: armIdle 2.2s ease-in-out infinite; }
+[data-mood="peek"] .mouthHappy    { opacity: 1 !important; display: block; }
+[data-mood="peek"] .leftBlush     { opacity: 0.75; }
+[data-mood="peek"] .rightBlush    { opacity: 0.75; }
+[data-mood="peek"] .leftEye,
+[data-mood="peek"] .rightEye          { animation: doubleBlinkOpen   5.2s infinite; }
+[data-mood="peek"] .leftEyeClosed,
+[data-mood="peek"] .rightEyeClosed    { animation: doubleBlinkClosed 5.2s infinite; }
+[data-mood="peek"] .eyeSparkleLeft    { opacity: 1; animation: sparklePulse 2.0s ease-in-out infinite; }
+[data-mood="peek"] .eyeSparkleRight   { opacity: 1; animation: sparklePulse 2.0s ease-in-out infinite 0.2s; }
+
+@keyframes peekPose {
+  0%, 100% { transform: rotate(-2deg) translateY(-1px); }
+  50%      { transform: rotate(-1deg) translateY(-3px); }
+}
+/* Arm reaches up to forehead. Origin [101,64] (shoulder inner corner);
+   rotate(-120°) swings hand up and inward toward face. */
+@keyframes peekSalute {
+  0%, 100% { transform: rotate(-115deg); }
+  50%      { transform: rotate(-120deg); }
+}
+
+
+/* ==================================================================
+   Reduced-motion: freeze everything
+   ================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .root.moodPop,
+  .stage, .body, .leftArm, .rightArm, .leftLeg, .rightLeg,
+  .stem, .leaf,
+  .leftEye, .rightEye, .leftEyeClosed, .rightEyeClosed,
+  .eyeSparkleLeft, .eyeSparkleRight,
+  .leftBrow, .rightBrow, .leftBlush, .rightBlush,
+  .mouth, .mouthHappy, .mouthFrown,
+  .steam, .thoughtDots {
+    animation: none !important;
+    transform: none !important;
+  }
+}

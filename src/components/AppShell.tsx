@@ -28,7 +28,7 @@ export type AppShellProps = {
 
 export default async function AppShell({
   active,
-  showMascot = false,
+  showMascot = true,
   showFriends = true,
   showRooms = true,
   compact = false,
@@ -59,9 +59,19 @@ export default async function AppShell({
   const brandCls = `${styles.brandSlot} ${compact ? styles.brandSlotCompact : ""}`.trim();
   const userCls = `${styles.userSlot} ${compact ? styles.userSlotCompact : ""}`.trim();
   const focusOnly = !showFriends && !showRooms;
-  const layoutCls = `${styles.layout} ${
-    focusOnly ? (compact ? styles.layoutImmersive : styles.layoutFocus) : ""
-  }`.trim();
+  const isHome = active === "home" || active === undefined;
+  const smallMascot = showMascot && !isHome;
+  const modeCls = focusOnly
+    ? compact
+      ? styles.layoutImmersive
+      : styles.layoutFocus
+    : !showMascot
+    ? styles.layoutNoMascot
+    : smallMascot
+    ? styles.layoutSmallMascot
+    : "";
+  const layoutCls = `${styles.layout} ${modeCls}`.trim();
+  const mascotScale = isHome ? 1.05 : 0.6;
 
   return (
     <main className={pageCls}>
@@ -101,7 +111,7 @@ export default async function AppShell({
         {/* Mascot row is always reserved so panels align across pages.
             Slot is empty when showMascot is false. */}
         <div className={styles.mascotSlot}>
-          {showMascot && <Mascot scale={1.4} />}
+          {showMascot && <Mascot scale={mascotScale} />}
         </div>
 
         {showFriends && (

@@ -47,7 +47,7 @@ export default function BrandPlate({
     <>
     <Sketch variant={1} className={styles.plate}>
       <div className={styles.logo}>
-        <Mascot scale={0.32} shadow={false} />
+        <Mascot scale={0.17} shadow={false} animated={false} />
       </div>
 
       <div className={styles.titleRow}>

@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  padding: 110px 24px 40px;
+  padding: 72px 24px 32px;
   position: relative;
 }
 
@@ -37,16 +37,16 @@
 /* Row 1 is always reserved for the mascot slot (125px) so that side panels
    and the center card start at the SAME vertical position on every page,
    whether a mascot is shown or not.
-   Row 2 is a fixed 540px — long center pages scroll internally inside
+   Row 2 is a fixed 460px — long center pages scroll internally inside
    their own card instead of growing the whole page. */
 .layout {
   max-width: 1440px;
   margin: 0 auto;
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr) 320px;
-  grid-template-rows: 125px 540px;
-  column-gap: 28px;
-  row-gap: 24px;
+  grid-template-rows: 280px minmax(460px, calc(100dvh - 392px));
+  column-gap: 20px;
+  row-gap: 8px;
   align-items: start;
 }
 
@@ -59,21 +59,37 @@
   align-items: flex-end;
 }
 
-/* side panels keep a fixed 540px viewport with their own internal scroll */
+/* Pages without a mascot (/play, /leaderboard, /shop, /profile…) shrink
+   the reserved top row to just the space needed to clear the absolute-
+   positioned brand/user header plates — no visual dead band, no overlap. */
+.layoutNoMascot {
+  grid-template-rows: 120px minmax(460px, calc(100dvh - 232px));
+}
+.layoutNoMascot .mascotSlot { display: none; }
+
+/* Non-home pages with a small mascot: shorter reserved row so the mascot
+   doesn't dominate the content below it. */
+.layoutSmallMascot {
+  grid-template-rows: 170px minmax(460px, calc(100dvh - 282px));
+}
+
+/* side panels stretch to fill the row height (min 460px, grows with viewport)
+   and scroll internally so long lists don't blow out the page. */
 .friendsSlot {
   grid-column: 1;
   grid-row: 2;
-  height: 540px;
+  height: 100%;
   min-height: 0;
-  align-self: start;
+  align-self: stretch;
   overflow: hidden;
 }
 .centerSlot  {
   grid-column: 2;
   grid-row: 2;
   justify-self: stretch;
+  align-self: stretch;
   width: 100%;
-  height: 540px;
+  height: 100%;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -81,9 +97,9 @@
 .roomsSlot {
   grid-column: 3;
   grid-row: 2;
-  height: 540px;
+  height: 100%;
   min-height: 0;
-  align-self: start;
+  align-self: stretch;
   overflow: hidden;
 }
 
@@ -127,8 +143,8 @@
 @media (max-width: 1140px) {
   .layout {
     grid-template-columns: 240px minmax(0, 1fr) 280px;
-    column-gap: 20px;
-    row-gap: 20px;
+    column-gap: 16px;
+    row-gap: 10px;
   }
 }
 

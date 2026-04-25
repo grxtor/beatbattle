@@ -2,13 +2,11 @@
 
 .card {
   height: 100%;
-  padding: 48px 40px;
+  padding: 28px 40px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 44px;
-  max-width: 560px;
-  margin: 0 auto;
+  justify-content: space-evenly;
+  gap: 24px;
   width: 100%;
 }
 
