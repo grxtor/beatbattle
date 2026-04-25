@@ -13,13 +13,16 @@ export function getOAuthProviders(): OAuthProvider[] {
       id: "discord",
       label: "DISCORD",
       mark: "D",
-      enabled: !!process.env.DISCORD_CLIENT_ID,
+      enabled:
+        !!process.env.DISCORD_CLIENT_ID && !!process.env.DISCORD_CLIENT_SECRET,
     },
     {
       id: "google",
       label: "GOOGLE",
       mark: "G",
-      enabled: !!process.env.GOOGLE_CLIENT_ID,
+      // Temporarily disabled. Flip to env-gated enable when ready:
+      //   !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET
+      enabled: false,
     },
   ];
 }

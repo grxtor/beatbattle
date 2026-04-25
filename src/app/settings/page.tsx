@@ -15,7 +15,8 @@ export const dynamic = "force-dynamic";
 
 const OAUTH_PROVIDERS = [
   { id: "discord", label: "DISCORD", enabled: !!process.env.DISCORD_CLIENT_ID },
-  { id: "google", label: "GOOGLE", enabled: !!process.env.GOOGLE_CLIENT_ID },
+  // Google temporarily disabled. Flip to `!!process.env.GOOGLE_CLIENT_ID` to re-enable.
+  { id: "google", label: "GOOGLE", enabled: false },
 ] as const;
 
 export default async function SettingsPage() {
