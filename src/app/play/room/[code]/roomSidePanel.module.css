@@ -5,7 +5,9 @@
   border: 1px dashed rgba(255, 138, 42, 0.18);
   padding: 10px 8px 8px;
   min-width: 0;
+  height: 100%;
   align-self: stretch;
+  overflow: hidden;
 }
 
 .head {
@@ -40,8 +42,8 @@
   flex-direction: column;
   gap: 6px;
   overflow-y: auto;
-  max-height: calc(100dvh - 320px);
-  min-height: 100px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .row {

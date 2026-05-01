@@ -648,36 +648,9 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
       {/* ===================== LOBBY ===================== */}
       {phase === "LOBBY" && (
         <div className={styles.lobby}>
-          <Sketch variant={1} className={styles.lobbyCol}>
-            <div className={styles.colTitle}>
-              <span>PLAYERS</span>
-              <span>{room.players.length} / {room.maxPlayers}</span>
-            </div>
-            <div className={styles.playerGrid}>
-              {room.players.map((p) => (
-                <div
-                  key={p.id}
-                  className={`${styles.pSlot} ${p.isHost ? styles.host : ""} ${p.isReady ? styles.ready : ""}`}
-                >
-                  <div className={styles.pAvatar}>{p.user.initials}</div>
-                  <div className={styles.pBody}>
-                    <span className={styles.pName}>@{p.user.username}</span>
-                    <span className={`${styles.pSub} ${p.isReady ? styles.ok : ""}`}>
-                      {p.isHost ? <>LVL {p.user.level} · <b>HOST</b></> :
-                       p.isReady ? <>LVL {p.user.level} · <b>READY</b></> :
-                       <>LVL {p.user.level} · waiting</>}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              {Array.from({ length: Math.max(0, room.maxPlayers - room.players.length) }, (_, i) => (
-                <div key={`empty-${i}`} className={`${styles.pSlot} ${styles.empty}`}>
-                  + WAITING
-                </div>
-              ))}
-            </div>
-          </Sketch>
-
+          {/* Players are rendered in the left RoomSidePanel — no need to
+              duplicate them here. Settings + invite + ready/start fill the
+              center on their own. */}
           <Sketch variant={2} className={styles.lobbyCol}>
             <div className={styles.colTitle}><span>ROOM SETTINGS</span></div>
             <div className={styles.lobbyInfo}>

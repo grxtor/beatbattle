@@ -39,8 +39,10 @@ function isSystemMsg(m: ChatMessage): boolean {
   return m.user.username === SYSTEM_USERNAME;
 }
 
-function shouldDefaultOpen(phase: Phase): boolean {
-  return phase === "VOTING" || phase === "RESULTS";
+function shouldDefaultOpen(_phase: Phase): boolean {
+  // Chat lives as a fixed right rail now; default open in every phase so the
+  // panel doesn't render as a tall empty column with just a header strip.
+  return true;
 }
 
 export default function RoomChat({
