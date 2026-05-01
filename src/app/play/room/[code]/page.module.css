@@ -973,3 +973,551 @@
   .production { grid-template-columns: 1fr; }
   .podium { grid-template-columns: 1fr; }
 }
+
+/* =========================================================
+   PLAYER STATUS STRIP — visible across all phases
+   ========================================================= */
+
+.playerStatusStrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 6px;
+  padding: 8px 0;
+  border-bottom: 1px dashed rgba(255, 138, 42, 0.18);
+}
+
+.psTile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--line-hi);
+  background: transparent;
+  min-width: 0;
+}
+.psTile.psMe { border-color: var(--accent); }
+.psTile.psHost { border-color: var(--accent-dim); }
+.psTile.psHost.psMe { border-color: var(--accent); }
+
+.psAvatarBox {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.psAvatar {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-deep);
+  color: var(--accent-hi);
+  font-family: var(--font-pixel);
+  font-size: 8px;
+}
+
+.psDot {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--bg);
+  /* GPU layer — keeps the dot crisp during phase pulse animation. */
+  transform: translateZ(0);
+}
+.psDot.dotOn { background: var(--ok); box-shadow: 0 0 4px var(--ok); }
+.psDot.dotOff { background: #732222; }
+
+.psBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+  line-height: 1;
+}
+.psName {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.psHostTag {
+  font-weight: 400;
+  color: var(--accent);
+  font-size: 7px;
+  letter-spacing: 1px;
+}
+.psMeta {
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  letter-spacing: 0.5px;
+  color: var(--text-faint);
+}
+.psBadge {
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  letter-spacing: 1px;
+  padding: 2px 5px;
+  margin-top: 2px;
+  display: inline-block;
+  align-self: flex-start;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.psBadge.tonOk { color: var(--ok); }
+.psBadge.tonWarn { color: #e0b53a; }
+.psBadge.tonAccent { color: var(--accent); }
+.psBadge.tonMuted { color: var(--text-faint); }
+
+@media (max-width: 600px) {
+  .playerStatusStrip {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+  .psBadge { font-size: 6px; }
+}
+
+/* =========================================================
+   URGENT-TIMER PULSE — red flash when < 10s left
+   ========================================================= */
+
+.urgent {
+  color: #e04b3a !important;
+  animation: pulseUrgent 0.55s ease-in-out infinite alternate;
+}
+@keyframes pulseUrgent {
+  from { transform: scale(1); color: #e04b3a; }
+  to   { transform: scale(1.05); color: #ff6b58; }
+}
+
+/* =========================================================
+   UPLOAD WAITING-ON LIST
+   ========================================================= */
+
+.waitingDone {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: var(--ok);
+  text-align: center;
+  padding: 6px 0;
+}
+.waitingWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 0;
+}
+.waitingLbl {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+.waitingChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  max-width: 560px;
+}
+.waitingChip {
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  letter-spacing: 0.5px;
+  padding: 3px 7px;
+  border: 1px solid var(--line-hi);
+  color: var(--text-faint);
+}
+
+/* =========================================================
+   VOTING — global progress
+   ========================================================= */
+
+.voteGlobal {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px dashed rgba(255, 138, 42, 0.2);
+  background: rgba(255, 138, 42, 0.03);
+}
+.voteGlobalLine {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--text);
+  text-align: center;
+}
+.voteGlobalLine b { color: var(--accent); font-weight: 400; }
+.voteGlobalGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 4px;
+}
+.voteGlobalCell {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  letter-spacing: 0.5px;
+  color: var(--text-faint);
+  padding: 2px 6px;
+  border: 1px solid var(--line-hi);
+}
+.voteGlobalCell.done {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+/* =========================================================
+   RESULTS — vote breakdown + XP split
+   ========================================================= */
+
+.voteBreak {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.voteBreakChip {
+  font-family: var(--font-pixel);
+  font-size: 6.5px;
+  letter-spacing: 0.5px;
+  padding: 2px 5px;
+  border: 1px solid var(--line-hi);
+  color: var(--text-dim);
+}
+
+.resultRowExt {
+  display: grid;
+  grid-template-columns: 36px 28px 1fr auto;
+  gap: 10px;
+  align-items: start;
+  padding: 8px 10px;
+}
+.resultRowExt:hover { background: rgba(255, 138, 42, 0.03); }
+.resultRowExt.me { border: 1px solid var(--accent); }
+
+.resultMain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.resultTopRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.resultLvl {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: var(--text-faint);
+}
+
+.resultXpCol {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-end;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.resultXpLine { color: var(--text-dim); }
+.resultXpLine b { color: var(--accent); font-weight: 400; }
+.resultXpTotal {
+  color: var(--accent);
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px dashed rgba(255, 138, 42, 0.2);
+}
+
+/* =========================================================
+   HOST CONTROLS DRAWER
+   ========================================================= */
+
+.hostControls {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px dashed rgba(255, 138, 42, 0.3);
+  background: rgba(255, 138, 42, 0.02);
+}
+
+.hostToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.hostToggle:hover { background: rgba(255, 138, 42, 0.04); }
+.hostToggleOpen { border-bottom: 1px dashed rgba(255, 138, 42, 0.2); }
+.hostCaret {
+  font-size: 11px;
+  color: var(--accent);
+}
+
+.hostDrawer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease-out;
+}
+.hostDrawerOpen {
+  max-height: 600px;
+}
+
+.hostRow {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  flex-wrap: wrap;
+}
+.hostBtn {
+  flex: 1;
+  min-width: 140px;
+  padding: 8px 10px;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.hostBtn:hover:not(:disabled) {
+  color: var(--bg);
+  background: var(--accent);
+}
+.hostBtn:disabled {
+  color: var(--text-faint);
+  border-color: var(--line-hi);
+  cursor: not-allowed;
+}
+
+.hostKickList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px 12px;
+  border-top: 1px dashed rgba(255, 138, 42, 0.15);
+}
+.hostKickTitle {
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+.hostKickGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 6px;
+}
+.hostKickBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: 1px solid var(--line-hi);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.hostKickBtn:hover:not(:disabled) {
+  border-color: #e04b3a;
+}
+.hostKickBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.hostKickAv {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-deep);
+  color: var(--accent-hi);
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  flex-shrink: 0;
+}
+.hostKickName {
+  flex: 1;
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hostKickX {
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: #e04b3a;
+}
+
+/* =========================================================
+   LEAVE CONFIRMATION MODAL
+   ========================================================= */
+
+.leaveBody {
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--text);
+  line-height: 1.4;
+  margin: 0 0 16px;
+}
+
+.leaveActions {
+  display: flex;
+  gap: 8px;
+}
+.leaveActions button {
+  flex: 1;
+  padding: 12px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 2px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.leaveCancel {
+  color: var(--text-dim);
+  border: 1px solid var(--line-hi);
+}
+.leaveCancel:hover { color: var(--text); border-color: var(--text); }
+.leaveConfirm {
+  color: #e04b3a;
+  border: 1px solid #a03028;
+}
+.leaveConfirm:hover { background: #a03028; color: #fff; }
+.leaveConfirm:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* =========================================================
+   SPECTATOR / SOLO BANNERS
+   ========================================================= */
+
+.spectatorBanner,
+.soloBanner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-align: center;
+  border: 1px dashed;
+  animation: pulseUrgent 2.5s ease-in-out infinite alternate;
+  animation-name: bannerPulse;
+}
+.spectatorBanner {
+  color: #e0b53a;
+  border-color: rgba(224, 181, 58, 0.5);
+  background: rgba(224, 181, 58, 0.05);
+}
+.soloBanner {
+  color: var(--text-dim);
+  border-color: var(--line-hi);
+  background: rgba(255, 138, 42, 0.02);
+}
+.spectatorBanner b,
+.soloBanner b { color: var(--accent); font-weight: 400; }
+
+@keyframes bannerPulse {
+  from { opacity: 0.85; }
+  to   { opacity: 1; }
+}
+
+/* =========================================================
+   PRODUCTION sticky side panel + preview/replace UI
+   ========================================================= */
+
+.prodSideSticky {
+  position: sticky;
+  top: 80px;
+  align-self: flex-start;
+  max-height: calc(100dvh - 100px);
+  overflow-y: auto;
+}
+
+.submittedRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.submittedBtn {
+  padding: 10px 16px;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.submittedBtn:hover:not(:disabled) {
+  color: var(--bg);
+  background: var(--accent);
+}
+.submittedBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.submittedBtn.replace {
+  color: #e0b53a;
+  border-color: rgba(224, 181, 58, 0.5);
+}
+.submittedBtn.replace:hover:not(:disabled) {
+  color: var(--bg);
+  background: #e0b53a;
+}
+
+.previewWrap {
+  width: 100%;
+  max-width: 560px;
+  margin-top: 10px;
+}
+
+.donePanel {
+  text-align: center;
+  padding: 24px 12px;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--ok);
+}
+.donePanel small {
+  display: block;
+  margin-top: 8px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-dim);
+  letter-spacing: 0;
+}

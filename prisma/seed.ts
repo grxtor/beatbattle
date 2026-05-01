@@ -296,6 +296,33 @@ async function main() {
   // Dev ergonomics: pull lastSeenAt to now for seed-online users so
   // FriendsPanel shows them as online/in-room immediately (presence cutoff = 2min).
   const now = new Date();
+
+  // System user — used for room-system messages (phase advance, kicks, host
+  // actions). The chat client recognizes this by `username === "system"` and
+  // renders the message with the system style instead of as a user message.
+  // We force a hash that nothing should match (seed sets per-user passwords
+  // = username, but we explicitly forbid login as `system` by keeping no
+  // matching credential) so the row exists purely as a stable FK target.
+  await prisma.user.upsert({
+    where: { username: "system" },
+    update: { initials: "SYS" },
+    create: {
+      username: "system",
+      initials: "SYS",
+      level: 1,
+      xp: 0,
+      wins: 0,
+      streak: 0,
+      currency: 0,
+      tier: "BRONZE III",
+      online: false,
+      // Privacy: keep them out of every public surface.
+      acceptFriendRequests: false,
+      showOnLeaderboard: false,
+      discoverable: false,
+    },
+  });
+
   for (const u of USERS) {
     const passwordHash = await hashFor(u.username);
     await prisma.user.upsert({

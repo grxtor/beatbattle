@@ -11,20 +11,46 @@ type ChatMessage = {
   user: { id: string; username: string; initials: string };
 };
 
+type Phase =
+  | "LOBBY"
+  | "REVEAL"
+  | "PRODUCTION"
+  | "UPLOAD"
+  | "VOTING"
+  | "RESULTS"
+  | "CANCELLED";
+
 type Props = {
   code: string;
   /** Current viewer — used to style own messages. */
   meId: string;
   /** Disable input when user is not a member or room is cancelled. */
   disabled?: boolean;
+  /** Battle phase — drives default-open behavior + toast routing. */
+  phase: Phase;
 };
 
 const POLL_MS = 4_000;
 const MAX_LEN = 2000;
 
-export default function RoomChat({ code, meId, disabled = false }: Props) {
+const SYSTEM_USERNAME = "system";
+
+function isSystemMsg(m: ChatMessage): boolean {
+  return m.user.username === SYSTEM_USERNAME;
+}
+
+function shouldDefaultOpen(phase: Phase): boolean {
+  return phase === "VOTING" || phase === "RESULTS";
+}
+
+export default function RoomChat({
+  code,
+  meId,
+  disabled = false,
+  phase,
+}: Props) {
   const toast = useToast();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState<boolean>(() => shouldDefaultOpen(phase));
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -33,6 +59,30 @@ export default function RoomChat({ code, meId, disabled = false }: Props) {
   const sinceRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
   const wasAtBottomRef = useRef(true);
+  const prevPhaseRef = useRef<Phase>(phase);
+  const openRef = useRef(open);
+  const phaseRef = useRef<Phase>(phase);
+
+  // Keep refs in sync so the load callback (memoized for stability) can read
+  // current open + phase without invalidating its identity each tick.
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+
+  // Auto-open when entering VOTING or RESULTS.
+  useEffect(() => {
+    if (
+      prevPhaseRef.current !== phase &&
+      shouldDefaultOpen(phase) &&
+      !open
+    ) {
+      setOpen(true);
+    }
+    prevPhaseRef.current = phase;
+  }, [phase, open]);
 
   const scrollToBottom = useCallback(() => {
     const el = listRef.current;
@@ -48,8 +98,9 @@ export default function RoomChat({ code, meId, disabled = false }: Props) {
       const data = (await res.json()) as { messages: ChatMessage[] };
       if (!mountedRef.current || data.messages.length === 0) return;
 
+      const isInitial = !sinceRef.current;
       setMessages((curr) => {
-        if (!sinceRef.current) {
+        if (isInitial) {
           // Initial fetch — replace.
           return data.messages;
         }
@@ -63,14 +114,36 @@ export default function RoomChat({ code, meId, disabled = false }: Props) {
       const last = data.messages[data.messages.length - 1];
       sinceRef.current = last.createdAt;
 
-      if (!open || !wasAtBottomRef.current) {
-        const fromOthers = data.messages.filter((m) => m.user.id !== meId).length;
-        if (fromOthers > 0) setUnread((u) => u + fromOthers);
+      if (isInitial) {
+        // Don't ping or count on the first replay of history.
+        return;
+      }
+
+      const fromOthers = data.messages.filter((m) => m.user.id !== meId);
+      if (fromOthers.length === 0) return;
+
+      const isOpen = openRef.current;
+      const currentPhase = phaseRef.current;
+      // Toast a new message when the chat is closed *and* the user is in the
+      // middle of producing — otherwise the message gets lost behind the DAW
+      // upload UI. Voting/Results we trust the auto-open + unread badge.
+      if (
+        !isOpen &&
+        (currentPhase === "PRODUCTION" || currentPhase === "UPLOAD")
+      ) {
+        const m = fromOthers[fromOthers.length - 1];
+        const trimmed = m.body.length > 60 ? `${m.body.slice(0, 57)}…` : m.body;
+        const author = isSystemMsg(m) ? "system" : `@${m.user.username}`;
+        toast.info(`${author}: ${trimmed}`, "Room chat");
+      }
+
+      if (!isOpen || !wasAtBottomRef.current) {
+        setUnread((u) => u + fromOthers.length);
       }
     } catch {
       // Silent — polling will retry.
     }
-  }, [code, meId, open]);
+  }, [code, meId, toast]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -177,19 +250,28 @@ export default function RoomChat({ code, meId, disabled = false }: Props) {
                 No messages yet — break the ice.
               </div>
             ) : (
-              messages.map((m) => (
-                <div
-                  key={m.id}
-                  className={`${styles.msg} ${
-                    m.user.id === meId ? styles.msgMine : ""
-                  }`}
-                >
-                  <span className={styles.author}>
-                    <b>{m.user.initials}</b> @{m.user.username}
-                  </span>
-                  <span className={styles.body}>{m.body}</span>
-                </div>
-              ))
+              messages.map((m) => {
+                if (isSystemMsg(m)) {
+                  return (
+                    <div key={m.id} className={styles.systemMsg}>
+                      <span className={styles.systemBody}>{m.body}</span>
+                    </div>
+                  );
+                }
+                return (
+                  <div
+                    key={m.id}
+                    className={`${styles.msg} ${
+                      m.user.id === meId ? styles.msgMine : ""
+                    }`}
+                  >
+                    <span className={styles.author}>
+                      <b>{m.user.initials}</b> @{m.user.username}
+                    </span>
+                    <span className={styles.body}>{m.body}</span>
+                  </div>
+                );
+              })
             )}
           </div>
 

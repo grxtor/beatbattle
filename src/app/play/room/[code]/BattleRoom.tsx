@@ -5,8 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Sketch from "@/components/Sketch";
 import { useToast } from "@/components/Toast";
+import HostControls from "./HostControls";
+import LeaveConfirmModal from "./LeaveConfirmModal";
+import PlayerStatusStrip, { type StripPlayer } from "./PlayerStatusStrip";
 import RoomChat from "./RoomChat";
 import TrackPlayer from "./TrackPlayer";
+import VoteBreakdown from "./VoteBreakdown";
+import WaitingOnList from "./WaitingOnList";
 import styles from "./page.module.css";
 
 type Phase = "LOBBY" | "REVEAL" | "PRODUCTION" | "UPLOAD" | "VOTING" | "RESULTS" | "CANCELLED";
@@ -17,6 +22,11 @@ type RoomPlayer = {
   userId: string;
   isHost: boolean;
   isReady: boolean;
+  isOnline: boolean;
+  lastSeenSecondsAgo: number;
+  hasSubmitted: boolean;
+  votesCast: number;
+  votesTotal: number;
   user: { id: string; username: string; initials: string; level: number };
 };
 
@@ -29,6 +39,7 @@ type Track = {
   anonymousLabel: string;
   mine: boolean;
   myVote: { rating: VoteRating; locked: boolean } | null;
+  voteBreakdown?: { rating: VoteRating; count: number }[];
 };
 
 type BattleResult = {
@@ -36,6 +47,7 @@ type BattleResult = {
   trackScore: number;
   xpAwarded: number;
   coinsAwarded: number;
+  voterXp: number;
   user: { id: string; username: string; initials: string; level: number };
 };
 
@@ -51,13 +63,22 @@ type RoomResponse = {
     privacy: string;
     phase: Phase;
     phaseEndsAt: string | null;
+    extendedSec: number;
     samples: { name: string; duration: string; audioUrl: string | null }[] | null;
     host: { id: string; username: string; initials: string; level: number };
     players: RoomPlayer[];
     tracks: Track[];
     results: BattleResult[];
   };
-  me: { id: string; username: string; inRoom: boolean; submitted: boolean };
+  me: {
+    id: string;
+    username: string;
+    inRoom: boolean;
+    submitted: boolean;
+    canProduce: boolean;
+    isSpectator: boolean;
+    voteProgress: { cast: number; total: number };
+  };
   serverTime: string;
 };
 
@@ -73,6 +94,9 @@ const VOTE_OPTIONS: { label: VoteRating; display: string; xp: number }[] = [
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024;
 const ACCEPTED_MIMES = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/ogg"];
 
+const URGENT_THRESHOLD_SEC = 10;
+const TIMED_PHASES = new Set<Phase>(["REVEAL", "PRODUCTION", "UPLOAD", "VOTING"]);
+
 type BattleRoomProps = { code: string };
 
 function fmtCountdown(seconds: number): string {
@@ -86,6 +110,29 @@ function genreDisplay(g: string) {
   if (g === "LOFI") return "LO-FI";
   if (g === "HIPHOP") return "HIP-HOP";
   return g;
+}
+
+function transitionToast(prev: Phase, next: Phase, lengthMin: number): { tier: "info" | "error"; message: string } | null {
+  if (next === "CANCELLED") return { tier: "error", message: "Room cancelled." };
+  if (prev === "LOBBY" && next === "REVEAL") {
+    return {
+      tier: "info",
+      message: `Samples revealed — ${lengthMin}:00 to produce!`,
+    };
+  }
+  if (prev === "REVEAL" && next === "PRODUCTION") {
+    return { tier: "info", message: "Production started — flip those samples!" };
+  }
+  if (prev === "PRODUCTION" && next === "UPLOAD") {
+    return { tier: "info", message: "Time's up — upload your track now!" };
+  }
+  if (prev === "UPLOAD" && next === "VOTING") {
+    return { tier: "info", message: "Voting time — rate the tracks blind." };
+  }
+  if (prev === "VOTING" && next === "RESULTS") {
+    return { tier: "info", message: "Results in — let's see who won." };
+  }
+  return null;
 }
 
 export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
@@ -105,7 +152,14 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
   >({});
   const [voteErr, setVoteErr] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [allowReplace, setAllowReplace] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const pollingRef = useRef<number | null>(null);
+  // Refs for one-shot effects driven by polling deltas.
+  const lastPhaseRef = useRef<Phase | null>(null);
+  const restoreFiredRef = useRef(false);
 
   /* --- polling + time tick --- */
 
@@ -137,7 +191,7 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
     return () => clearInterval(id);
   }, []);
 
-  /* --- auto-join if not in room --- */
+  /* --- auto-join if not in room (LOBBY only) --- */
 
   useEffect(() => {
     if (!data || data.me.inRoom || joining) return;
@@ -147,6 +201,44 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
       .then(() => load())
       .finally(() => setJoining(false));
   }, [data, code, load, joining]);
+
+  /* --- phase transition toasts + first-poll restore toasts --- */
+
+  useEffect(() => {
+    if (!data) return;
+    const phase = data.room.phase;
+    const prev = lastPhaseRef.current;
+
+    if (prev === null) {
+      // First poll — fire any restore-state toasts.
+      if (!restoreFiredRef.current) {
+        restoreFiredRef.current = true;
+        if (phase === "VOTING") {
+          if (
+            data.me.voteProgress.total > 0 &&
+            data.me.voteProgress.cast > 0
+          ) {
+            toast.info(
+              `Welcome back — you've voted ${data.me.voteProgress.cast}/${data.me.voteProgress.total} tracks.`,
+            );
+          }
+          // Skip already-voted tracks so the user lands on the next one.
+          const tracks = data.room.tracks.filter((t) => !t.mine);
+          const firstUnvoted = tracks.findIndex((t) => !t.myVote?.locked);
+          if (firstUnvoted > 0) setVoteTrackIdx(firstUnvoted);
+        } else if ((phase === "UPLOAD" || phase === "PRODUCTION") && data.me.submitted) {
+          toast.info("Track already uploaded — you can preview or replace below.");
+        }
+      }
+    } else if (prev !== phase) {
+      const t = transitionToast(prev, phase, data.room.lengthMin);
+      if (t) {
+        if (t.tier === "error") toast.error(t.message);
+        else toast.info(t.message);
+      }
+    }
+    lastPhaseRef.current = phase;
+  }, [data, toast]);
 
   /* --- derived --- */
 
@@ -160,6 +252,12 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
   const room = data?.room;
   const isHost = room?.host.id === me?.id;
   const amReady = room?.players.find((p) => p.userId === me?.id)?.isReady ?? false;
+
+  const isUrgent =
+    countdown !== null &&
+    countdown <= URGENT_THRESHOLD_SEC &&
+    room !== undefined &&
+    TIMED_PHASES.has(room.phase);
 
   /* --- sample audio playback --- */
 
@@ -217,7 +315,9 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const pickFile = () => {
-    if (uploadBusy || me?.submitted) return;
+    if (uploadBusy) return;
+    // Allow re-upload when the user has explicitly opted in via "Replace track".
+    if (me?.submitted && !allowReplace) return;
     fileInputRef.current?.click();
   };
 
@@ -246,7 +346,7 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
 
         // XHR so we can surface upload progress; fetch streams aren't widely
         // supported yet.
-        const pct = await new Promise<number>((resolve, reject) => {
+        const result = await new Promise<{ replaced: boolean }>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           xhr.open("POST", `/api/rooms/${code}/track`);
           xhr.upload.onprogress = (e) => {
@@ -255,10 +355,10 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
             }
           };
           xhr.onload = () => {
-            let body: { error?: string } = {};
+            let body: { error?: string; replaced?: boolean } = {};
             try { body = JSON.parse(xhr.responseText); } catch { /* ignore */ }
             if (xhr.status >= 200 && xhr.status < 300) {
-              resolve(100);
+              resolve({ replaced: Boolean(body.replaced) });
             } else {
               reject(new Error(body.error ?? `HTTP ${xhr.status}`));
             }
@@ -266,8 +366,11 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
           xhr.onerror = () => reject(new Error("network error"));
           xhr.send(form);
         });
-        setUploadPct(pct);
-        toast.success("Track uploaded");
+        setUploadPct(100);
+        toast.success(result.replaced ? "Track replaced" : "Track uploaded");
+        // Always lock the replace gate again after a successful upload.
+        setAllowReplace(false);
+        setShowPreview(false);
         await load();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "upload failed");
@@ -287,7 +390,8 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
 
   const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    if (uploadBusy || me?.submitted) return;
+    if (uploadBusy) return;
+    if (me?.submitted && !allowReplace) return;
     const f = e.dataTransfer.files?.[0];
     if (f) void uploadTrack(f);
   };
@@ -314,14 +418,68 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
       }
       const j = (await res.json()) as { ok: true; rating: VoteRating; locked: boolean };
       setLocalVotes((v) => ({ ...v, [trackId]: { rating: j.rating, locked: j.locked } }));
+      // When the vote locks, automatically advance to the next un-voted track
+      // so producers don't have to click NEXT TRACK each round.
+      if (j.locked) {
+        // Read latest tracks/votes via the most recent data snapshot.
+        const tracks = data?.room.tracks.filter((t) => !t.mine) ?? [];
+        // Find next un-voted track AFTER the current index.
+        let nextIdx = -1;
+        for (let i = 0; i < tracks.length; i++) {
+          if (i === voteTrackIdx) continue;
+          const tt = tracks[i];
+          const lv = (tt.id === trackId
+            ? { rating: j.rating, locked: j.locked }
+            : localVotes[tt.id] ?? tt.myVote) ?? null;
+          if (!lv?.locked && i > voteTrackIdx) {
+            nextIdx = i;
+            break;
+          }
+        }
+        if (nextIdx === -1) {
+          for (let i = 0; i < tracks.length; i++) {
+            const tt = tracks[i];
+            if (tt.id === trackId) continue;
+            const lv = localVotes[tt.id] ?? tt.myVote;
+            if (!lv?.locked) {
+              nextIdx = i;
+              break;
+            }
+          }
+        }
+        if (nextIdx !== -1) setVoteTrackIdx(nextIdx);
+      }
     } catch {
       setVoteErr("connection error");
     }
   };
 
-  const leave = async () => {
-    await fetch(`/api/rooms/${code}/leave`, { method: "POST" });
-    router.push("/");
+  const performLeave = useCallback(async () => {
+    setLeaving(true);
+    try {
+      await fetch(`/api/rooms/${code}/leave`, { method: "POST" });
+      router.push("/");
+    } finally {
+      setLeaving(false);
+    }
+  }, [code, router]);
+
+  const onLeaveClick = () => {
+    if (!room) {
+      void performLeave();
+      return;
+    }
+    const phase = room.phase;
+    const isActiveBattle =
+      phase === "REVEAL" ||
+      phase === "PRODUCTION" ||
+      phase === "UPLOAD" ||
+      phase === "VOTING";
+    if (isActiveBattle) {
+      setLeaveOpen(true);
+    } else {
+      void performLeave();
+    }
   };
 
   /* --- render --- */
@@ -361,6 +519,19 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
   const currentVoteSelection = currentVoteState?.rating;
   const currentVoteLocked = currentVoteState?.locked ?? false;
 
+  // VOTING global progress — count producers who have completed their vote
+  // duties. Spectators (votesTotal === 0) are excluded from the denominator.
+  const votingPlayers = room.players.filter((p) => p.votesTotal > 0);
+  const votedComplete = votingPlayers.filter((p) => p.votesCast >= p.votesTotal).length;
+
+  // Helper: full strip player view used in every phase.
+  const stripPlayers: StripPlayer[] = room.players;
+
+  // Locate user's own track for preview UI in PRODUCTION/UPLOAD.
+  const myTrack = room.tracks.find((t) => t.mine && t.audioUrl);
+  const allDoneVoting =
+    me.voteProgress.total > 0 && me.voteProgress.cast >= me.voteProgress.total;
+
   return (
     <div className={styles.wrap}>
       {/* ---- room header ---- */}
@@ -377,12 +548,39 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
             {room.players.length}/{room.maxPlayers}
           </span>
         </div>
-        <button onClick={leave} className={styles.leaveLink} style={{ border: "none", background: "none" }}>
+        <button onClick={onLeaveClick} className={styles.leaveLink} style={{ border: "none", background: "none" }}>
           ← LEAVE
         </button>
       </div>
 
       <PhaseSteps phase={phase} />
+
+      {/* Live status strip — visible across every active phase. */}
+      <PlayerStatusStrip
+        phase={phase}
+        players={stripPlayers}
+        results={room.results}
+        meId={me.id}
+      />
+
+      {isHost && (
+        <HostControls
+          code={code}
+          phase={phase}
+          extendedSec={room.extendedSec}
+          players={room.players}
+          onAfterAction={load}
+        />
+      )}
+
+      {/* Spectator banner — surfaces above whichever phase content renders below. */}
+      {me.isSpectator && phase !== "RESULTS" && phase !== "CANCELLED" && (
+        <div className={styles.spectatorBanner}>
+          <span>
+            <b>Spectator mode</b> — you joined mid-battle. You can vote and earn voting XP, but cannot submit a track.
+          </span>
+        </div>
+      )}
 
       {/* ===================== LOBBY ===================== */}
       {phase === "LOBBY" && (
@@ -461,7 +659,9 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
         <Sketch variant={1} className={styles.reveal}>
           <span className={styles.phaseKicker}>SAMPLES DROPPED</span>
           <h2 className={styles.phaseTitle}>GET <span>READY</span></h2>
-          <div className={styles.bigTimer}>{fmtCountdown(countdown ?? 0)}</div>
+          <div className={`${styles.bigTimer} ${isUrgent ? styles.urgent : ""}`}>
+            {fmtCountdown(countdown ?? 0)}
+          </div>
 
           <div className={styles.sampleGrid}>
             {samples.map((s, i) => (
@@ -500,23 +700,62 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
         <div className={styles.production}>
           <Sketch variant={1} className={styles.prodMain}>
             <span className={styles.prodLabel}>PRODUCE YOUR BEAT</span>
-            <div className={`${styles.prodTimer} ${(countdown ?? 0) < 11 ? styles.warn : ""}`}>
+            <div className={`${styles.prodTimer} ${isUrgent ? styles.urgent : (countdown ?? 0) < 11 ? styles.warn : ""}`}>
               {fmtCountdown(countdown ?? 0)}
             </div>
             <p className={styles.prodTip}>
               Use all 4 samples for bonus XP. Your DAW is ready — flip it before the clock hits zero.
             </p>
-            <button
-              className={styles.uploadCta}
-              disabled={me.submitted || uploadBusy}
-              onClick={pickFile}
-            >
-              {me.submitted
-                ? "✓ SUBMITTED"
-                : uploadBusy
-                ? `UPLOADING… ${uploadPct}%`
-                : "UPLOAD TRACK →"}
-            </button>
+
+            {!me.canProduce ? (
+              <div className={styles.donePanel}>
+                Spectating
+                <small>You joined mid-battle — chat and vote are still open.</small>
+              </div>
+            ) : me.submitted ? (
+              <>
+                <div className={styles.submittedRow}>
+                  <button
+                    type="button"
+                    className={styles.submittedBtn}
+                    onClick={() => setShowPreview((v) => !v)}
+                    disabled={!myTrack?.audioUrl}
+                  >
+                    {showPreview ? "■ HIDE PREVIEW" : "▸ PREVIEW"}
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.submittedBtn} ${styles.replace}`}
+                    onClick={() => {
+                      setAllowReplace(true);
+                      // Defer the click into the next tick so React flushes
+                      // the disabled-state change before the picker opens.
+                      window.setTimeout(() => fileInputRef.current?.click(), 0);
+                    }}
+                    disabled={uploadBusy}
+                  >
+                    {uploadBusy ? `UPLOADING… ${uploadPct}%` : "↻ REPLACE TRACK"}
+                  </button>
+                </div>
+                {showPreview && myTrack?.audioUrl && (
+                  <div className={styles.previewWrap}>
+                    <TrackPlayer
+                      src={myTrack.audioUrl}
+                      label="YOUR TRACK"
+                      resetKey={myTrack.id}
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <button
+                className={styles.uploadCta}
+                disabled={uploadBusy}
+                onClick={pickFile}
+              >
+                {uploadBusy ? `UPLOADING… ${uploadPct}%` : "UPLOAD TRACK →"}
+              </button>
+            )}
             <input
               ref={fileInputRef}
               type="file"
@@ -526,7 +765,7 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
             />
           </Sketch>
 
-          <Sketch variant={2} className={styles.prodSide}>
+          <Sketch variant={2} className={`${styles.prodSide} ${styles.prodSideSticky}`}>
             <div className={styles.prodSideTitle}>SAMPLES · REPLAY</div>
             {samples.some((s) => s.audioUrl) && (
               <a
@@ -562,40 +801,83 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
         <Sketch variant={1} className={styles.upload}>
           <span className={styles.phaseKicker}>UPLOAD WINDOW</span>
           <h2 className={styles.phaseTitle}>DROP YOUR <span>TRACK</span></h2>
-          <div className={styles.bigTimer}>{fmtCountdown(countdown ?? 0)}</div>
+          <div className={`${styles.bigTimer} ${isUrgent ? styles.urgent : ""}`}>
+            {fmtCountdown(countdown ?? 0)}
+          </div>
 
-          <Sketch
-            variant={2}
-            as="div"
-            className={`${styles.dropzone} ${me.submitted ? styles.done : ""}`}
-            onClick={pickFile}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={onDrop}
-          >
-            <div className={`${styles.dropIcon} ${me.submitted ? styles.done : ""}`}>
-              {me.submitted ? "✓" : uploadBusy ? "…" : "↑"}
+          {!me.canProduce ? (
+            <div className={styles.donePanel}>
+              Spectating
+              <small>You joined mid-battle — submissions are closed for you.</small>
             </div>
-            <span className={`${styles.dropText} ${me.submitted ? styles.ok : ""}`}>
-              {me.submitted
-                ? "TRACK SUBMITTED"
-                : uploadBusy
-                ? `UPLOADING ${uploadPct}%`
-                : "DROP OR CLICK TO UPLOAD"}
-            </span>
-            <span className={styles.dropHint}>
-              {me.submitted
-                ? "Waiting for other producers to finish."
-                : "mp3 / wav / ogg · max 30 MB"}
-            </span>
-          </Sketch>
-          {!me.submitted && (
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/ogg,.mp3,.wav,.ogg"
-              onChange={onFileSelected}
-              hidden
-            />
+          ) : me.submitted ? (
+            <>
+              <div className={styles.submittedRow}>
+                <button
+                  type="button"
+                  className={styles.submittedBtn}
+                  onClick={() => setShowPreview((v) => !v)}
+                  disabled={!myTrack?.audioUrl}
+                >
+                  {showPreview ? "■ HIDE PREVIEW" : "▸ PREVIEW"}
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.submittedBtn} ${styles.replace}`}
+                  onClick={() => {
+                    setAllowReplace(true);
+                    window.setTimeout(() => fileInputRef.current?.click(), 0);
+                  }}
+                  disabled={uploadBusy}
+                >
+                  {uploadBusy ? `UPLOADING… ${uploadPct}%` : "↻ REPLACE TRACK"}
+                </button>
+              </div>
+              {showPreview && myTrack?.audioUrl && (
+                <div className={styles.previewWrap}>
+                  <TrackPlayer
+                    src={myTrack.audioUrl}
+                    label="YOUR TRACK"
+                    resetKey={myTrack.id}
+                  />
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/ogg,.mp3,.wav,.ogg"
+                onChange={onFileSelected}
+                hidden
+              />
+            </>
+          ) : (
+            <>
+              <Sketch
+                variant={2}
+                as="div"
+                className={`${styles.dropzone}`}
+                onClick={pickFile}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={onDrop}
+              >
+                <div className={styles.dropIcon}>
+                  {uploadBusy ? "…" : "↑"}
+                </div>
+                <span className={styles.dropText}>
+                  {uploadBusy ? `UPLOADING ${uploadPct}%` : "DROP OR CLICK TO UPLOAD"}
+                </span>
+                <span className={styles.dropHint}>
+                  mp3 / wav / ogg · max 30 MB
+                </span>
+              </Sketch>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/ogg,.mp3,.wav,.ogg"
+                onChange={onFileSelected}
+                hidden
+              />
+            </>
           )}
 
           <div className={styles.uploadStats}>
@@ -616,11 +898,16 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
               </span>
             </Sketch>
           </div>
+
+          <WaitingOnList
+            players={room.players}
+            countdownLabel={fmtCountdown(countdown ?? 0)}
+          />
         </Sketch>
       )}
 
       {/* ===================== VOTING ===================== */}
-      {phase === "VOTING" && currentVoteTrack && (
+      {phase === "VOTING" && currentVoteTrack && !allDoneVoting && (
         <div className={styles.voting}>
           <Sketch variant={1} className={styles.voteHeader}>
             <span className={styles.voteCount}>
@@ -639,6 +926,28 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
               })}
             </div>
           </Sketch>
+
+          <div className={styles.voteGlobal}>
+            <span className={styles.voteGlobalLine}>
+              <b>{votedComplete}</b>/<b>{votingPlayers.length}</b> producers have voted
+            </span>
+            {votingPlayers.length > 0 && (
+              <div className={styles.voteGlobalGrid}>
+                {votingPlayers.map((p) => {
+                  const done = p.votesCast >= p.votesTotal;
+                  return (
+                    <span
+                      key={p.id}
+                      className={`${styles.voteGlobalCell} ${done ? styles.done : ""}`}
+                    >
+                      <span>@{p.user.username}</span>
+                      <span>{p.votesCast}/{p.votesTotal}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           <Sketch variant={2} className={styles.track}>
             <div className={styles.trackHead}>
@@ -716,8 +1025,15 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
           </Sketch>
 
           <div style={{ textAlign: "center", marginTop: 12, fontSize: 12, color: "var(--text-faint)" }}>
-            Time left: {fmtCountdown(countdown ?? 0)}
+            Time left: <span className={isUrgent ? styles.urgent : ""}>{fmtCountdown(countdown ?? 0)}</span>
           </div>
+        </div>
+      )}
+
+      {phase === "VOTING" && allDoneVoting && (
+        <div className={styles.donePanel}>
+          DONE — WAITING
+          <small>Voting in progress — results land when the timer hits zero.</small>
         </div>
       )}
 
@@ -734,6 +1050,14 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
             <span className={styles.phaseKicker}>BATTLE COMPLETE</span>
             <h2 className={styles.phaseTitle}>THE <span>RESULTS</span></h2>
           </Sketch>
+
+          {room.results.length <= 1 && (
+            <div className={styles.soloBanner}>
+              <span>
+                <b>Solo battle</b> — no opponents joined. Invite friends next time!
+              </span>
+            </div>
+          )}
 
           {room.results.length >= 3 && (
             <div className={styles.podium}>
@@ -761,20 +1085,41 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
           )}
 
           <Sketch variant={1} className={styles.resultList}>
-            {room.results.map((r) => (
-              <div
-                key={r.user.id}
-                className={`${styles.resultRow} ${r.user.id === me.id ? styles.me : ""}`}
-              >
-                <span className={styles.resultRank}>#{r.place}</span>
-                <div className={styles.resultAv}>{r.user.initials}</div>
-                <span className={`${styles.resultName} ${r.user.id === me.id ? styles.me : ""}`}>
-                  @{r.user.username}{r.user.id === me.id && " (YOU)"}
-                </span>
-                <span className={styles.resultScore}>LVL {r.user.level}</span>
-                <span className={styles.resultXp}>+{r.xpAwarded} XP · +{r.coinsAwarded} ¢</span>
-              </div>
-            ))}
+            {room.results.map((r) => {
+              const placementXp = Math.max(0, r.xpAwarded - r.voterXp);
+              const trackForUser = room.tracks.find((t) => t.userId === r.user.id);
+              return (
+                <div
+                  key={r.user.id}
+                  className={`${styles.resultRowExt} ${r.user.id === me.id ? styles.me : ""}`}
+                >
+                  <span className={styles.resultRank}>#{r.place}</span>
+                  <div className={styles.resultAv}>{r.user.initials}</div>
+                  <div className={styles.resultMain}>
+                    <div className={styles.resultTopRow}>
+                      <span className={`${styles.resultName} ${r.user.id === me.id ? styles.me : ""}`}>
+                        @{r.user.username}{r.user.id === me.id && " (YOU)"}
+                      </span>
+                      <span className={styles.resultLvl}>LVL {r.user.level} · score {r.trackScore}</span>
+                    </div>
+                    {trackForUser?.voteBreakdown && (
+                      <VoteBreakdown breakdown={trackForUser.voteBreakdown} />
+                    )}
+                  </div>
+                  <div className={styles.resultXpCol}>
+                    <span className={styles.resultXpLine}>
+                      <b>+{placementXp}</b> XP placement
+                    </span>
+                    <span className={styles.resultXpLine}>
+                      <b>+{r.voterXp}</b> XP voting
+                    </span>
+                    <span className={styles.resultXpTotal}>
+                      +{r.xpAwarded} XP · +{r.coinsAwarded} ¢
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </Sketch>
 
           <div className={styles.resultsCta}>
@@ -794,8 +1139,15 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
       )}
 
       {me.inRoom && phase !== "CANCELLED" && (
-        <RoomChat code={code} meId={me.id} />
+        <RoomChat code={code} meId={me.id} phase={phase} />
       )}
+
+      <LeaveConfirmModal
+        open={leaveOpen}
+        busy={leaving}
+        onClose={() => setLeaveOpen(false)}
+        onConfirm={performLeave}
+      />
 
       <audio
         ref={sampleAudioRef}

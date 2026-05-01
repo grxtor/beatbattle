@@ -94,9 +94,12 @@ COPY --chown=beatbattle:nodejs docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
 # Persistent media (uploaded tracks + samples). In prod bind-mount this to
-# /var/lib/beatbattle/media on the host.
+# /var/lib/beatbattle/media on the host. We deliberately do NOT declare
+# VOLUME here — that would force Docker to auto-create an anonymous volume
+# whenever no explicit mount is given (Dokploy's swarm service spec leaves
+# the host bind-mount unset on first deploy), which masks the real host dir
+# and silently strands sample/track files.
 RUN mkdir -p /media && chown -R beatbattle:nodejs /media
-VOLUME ["/media"]
 
 USER beatbattle
 EXPOSE 3000

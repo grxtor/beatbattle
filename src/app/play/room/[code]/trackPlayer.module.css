@@ -7,39 +7,19 @@
   border: 1px solid var(--accent-dim);
 }
 
-.bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
+.waveform {
   height: 80px;
   cursor: pointer;
   padding: 0 2px;
   user-select: none;
+  position: relative;
 }
-.bars.noSrc {
+.waveform.noSrc {
   cursor: default;
   opacity: 0.35;
 }
-
-.bar {
-  flex: 1;
-  min-width: 2px;
-  background: var(--line-hi);
-  transition: background 0.08s linear;
-}
-
-.barOn {
-  background: var(--accent);
-}
-
-@keyframes barPulse {
-  0%, 100% { transform: scaleY(1); }
-  50%      { transform: scaleY(0.75); }
-}
-
-.barPulse.barOn {
-  animation: barPulse 0.9s ease-in-out infinite;
-  transform-origin: bottom center;
+.waveform :global(canvas) {
+  display: block;
 }
 
 .controls {

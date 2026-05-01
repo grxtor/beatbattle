@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { postSystemMessage } from "@/lib/chat";
 import { RATE_LIMITS, rateLimit, tooManyRequests } from "@/lib/rateLimit";
 
 /**
@@ -33,22 +34,30 @@ export async function POST(
   const result = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Room" WHERE id = ${room.id} FOR UPDATE`;
 
-    // Re-read membership under the lock.
+    // Re-read membership under the lock. We also pull username so the system
+    // message can mention them by handle.
     const me = await tx.roomPlayer.findUnique({
       where: { roomId_userId: { roomId: room.id, userId } },
-      select: { id: true, isHost: true },
+      select: {
+        id: true,
+        isHost: true,
+        user: { select: { username: true } },
+      },
     });
     if (!me) return { notIn: true as const };
 
     await tx.roomPlayer.delete({ where: { id: me.id } });
 
-    if (!me.isHost) return { ok: true as const };
+    if (!me.isHost) {
+      await postSystemMessage(room.id, `@${me.user.username} left the battle.`, tx);
+      return { ok: true as const };
+    }
 
     // Host departure: pick successor from fresh post-delete state.
     const successor = await tx.roomPlayer.findFirst({
       where: { roomId: room.id },
       orderBy: { joinedAt: "asc" },
-      select: { id: true, userId: true },
+      select: { id: true, userId: true, user: { select: { username: true } } },
     });
 
     if (successor) {
@@ -60,11 +69,21 @@ export async function POST(
         where: { id: room.id },
         data: { hostId: successor.userId },
       });
+      await postSystemMessage(
+        room.id,
+        `@${me.user.username} left — @${successor.user.username} is now host.`,
+        tx,
+      );
     } else {
       await tx.room.update({
         where: { id: room.id },
         data: { phase: "CANCELLED", endedAt: new Date() },
       });
+      await postSystemMessage(
+        room.id,
+        `Room cancelled — host left.`,
+        tx,
+      );
     }
     return { ok: true as const };
   });

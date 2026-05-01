@@ -56,8 +56,16 @@ export async function POST(
   if (room.players.length === 0) {
     return NextResponse.json({ error: "not in room" }, { status: 403 });
   }
-  if (room.phase !== "PRODUCTION" && room.phase !== "UPLOAD") {
-    return NextResponse.json({ error: "upload window closed" }, { status: 409 });
+  // Uploads accepted during REVEAL/PRODUCTION/UPLOAD. Voting/Results/Cancelled
+  // close the window. Re-uploads (replacing an earlier submission) follow the
+  // same window — the replacement is announced via `replaced: true` in the
+  // response.
+  if (
+    room.phase !== "REVEAL" &&
+    room.phase !== "PRODUCTION" &&
+    room.phase !== "UPLOAD"
+  ) {
+    return NextResponse.json({ error: "uploads closed" }, { status: 409 });
   }
 
   const form = await request.formData().catch(() => null);
@@ -135,6 +143,8 @@ export async function POST(
     trackId: track.id,
     audioUrl: written.publicUrl,
     size: written.size,
+    /** True when this upload replaced a previous submission in this room. */
+    replaced: Boolean(existingTrack),
   });
 }
 

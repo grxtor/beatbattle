@@ -159,6 +159,9 @@ model Room {
   privacy      RoomPrivacy    @default(PUBLIC)
   phase        RoomPhase      @default(LOBBY)
   phaseEndsAt  DateTime?
+  /// Cumulative seconds the host has added to the current phase via /extend.
+  /// Reset to 0 when the phase advances. Capped at +600s server-side.
+  extendedSec  Int            @default(0)
   samples      Json?
   revealSec    Int            @default(30)
   uploadSec    Int            @default(120)
@@ -193,18 +196,22 @@ model RoomMessage {
 }
 
 model RoomPlayer {
-  id       String   @id @default(cuid())
-  roomId   String
-  userId   String
-  isHost   Boolean  @default(false)
-  isReady  Boolean  @default(false)
-  joinedAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  roomId      String
+  userId      String
+  isHost      Boolean  @default(false)
+  isReady     Boolean  @default(false)
+  joinedAt    DateTime @default(now())
+  /// Bumped whenever the user's PresencePing fires while they have an
+  /// active membership. "In-room" is derived as `lastPingAt > now - 90s`.
+  lastPingAt  DateTime @default(now())
 
   room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([roomId, userId])
   @@index([userId])
+  @@index([roomId, lastPingAt])
 }
 
 model Track {
@@ -301,6 +308,9 @@ model BattleResult {
   trackScore   Int      @default(0)
   xpAwarded    Int      @default(0)
   coinsAwarded Int      @default(0)
+  /// Voter participation XP awarded to this user, recorded separately so
+  /// the results UI can show "+N from voting" alongside placement XP.
+  voterXp      Int      @default(0)
   createdAt    DateTime @default(now())
 
   room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)

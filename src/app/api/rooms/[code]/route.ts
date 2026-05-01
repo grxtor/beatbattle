@@ -55,6 +55,32 @@ export async function GET(
 
   const myTrack = room.tracks.find((t) => t.mine);
 
+  // Spectator detection. A user who joined AFTER startedAt missed the reveal
+  // and can't produce — they hang around for chat / voting only. The window
+  // for "joined in time" is `joinedAt <= startedAt` (or LOBBY where
+  // startedAt is null and everyone is still a participant).
+  const myMembership = isMember
+    ? room.players.find((p) => p.userId === session.user!.id)
+    : undefined;
+  const joinedInTime =
+    !room.startedAt ||
+    (myMembership && myMembership.joinedAt.getTime() <= room.startedAt.getTime());
+
+  const producePhases = new Set<string>(["LOBBY", "REVEAL", "PRODUCTION", "UPLOAD"]);
+  const canProduce = Boolean(
+    isMember && joinedInTime && producePhases.has(room.phase),
+  );
+  const isSpectator = isMember && !canProduce;
+
+  // Vote progress for this user — useful both during VOTING (so the UI can
+  // show "3/5 votes cast") and in RESULTS (verify everyone hit their target).
+  const myProgress = myMembership
+    ? {
+        cast: myMembership.votesCast,
+        total: myMembership.votesTotal,
+      }
+    : { cast: 0, total: 0 };
+
   return NextResponse.json({
     room,
     me: {
@@ -62,6 +88,9 @@ export async function GET(
       username: session.user.username,
       inRoom: isMember,
       submitted: Boolean(myTrack),
+      canProduce,
+      isSpectator,
+      voteProgress: myProgress,
     },
     serverTime: new Date().toISOString(),
   });
