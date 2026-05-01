@@ -28,6 +28,11 @@
   min-height: 480px;
 }
 
+.lobbyGameGrid {
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 14px;
+}
+
 .gameMain {
   display: flex;
   flex-direction: column;
@@ -216,60 +221,264 @@
   margin: 0 auto;
 }
 
-/* ---------- Lobby V2 — hero card + chip strip + single CTA ---------- */
+/* ---------- Lobby V2 — pregame board ---------- */
 
 .lobbyV2 {
   display: flex;
   flex-direction: column;
-  gap: 18px;
   width: 100%;
-  max-width: 580px;
+  max-width: 1120px;
+  min-height: 100%;
   margin: 0 auto;
-  padding: 8px 0;
+  padding: 0;
+  flex: 1 1 auto;
 }
 
-.lobbyHero {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-areas:
-    "label   qr"
-    "code    qr"
-    "link    qr";
-  align-items: center;
-  gap: 10px 22px;
-  padding: 22px 24px;
+.lobbyBoard {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 640px;
+  height: 100%;
+  padding: 24px;
 }
 
-.heroLabel {
-  grid-area: label;
+.lobbyTopline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed rgba(255, 138, 42, 0.22);
+}
+
+.lobbyEyebrow,
+.panelLabel {
   font-family: var(--font-pixel);
-  font-size: 9px;
+  font-size: 8px;
   letter-spacing: 3px;
+  color: var(--accent);
+}
+
+.lobbyBoardTitle {
+  margin-top: 8px;
+  font-family: var(--font-pixel);
+  font-size: clamp(18px, 2.1vw, 28px);
+  letter-spacing: 3px;
+  line-height: 1.15;
+  color: var(--text);
+}
+
+.lobbyRoomCode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 120px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent-dim);
+  background: rgba(255, 138, 42, 0.07);
+}
+
+.lobbyRoomCode span {
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  letter-spacing: 2px;
   color: var(--text-faint);
 }
 
-.heroCodeRow {
-  grid-area: code;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.heroCode {
+.lobbyRoomCode b {
   font-family: var(--font-pixel);
-  font-size: 32px;
-  letter-spacing: 4px;
+  font-size: 22px;
+  letter-spacing: 3px;
   color: var(--accent);
   line-height: 1;
-  text-shadow: 0 0 18px rgba(255, 138, 42, 0.35);
+}
+
+.lobbyBoardGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 18px;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.lobbyLaunchPanel,
+.lobbyInfoPanel {
+  border: 1px dashed rgba(255, 138, 42, 0.22);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.lobbyLaunchPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 18px;
+}
+
+.launchMeter {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid rgba(255, 138, 42, 0.22);
+  background:
+    linear-gradient(90deg, rgba(255, 138, 42, 0.1), rgba(255, 138, 42, 0.02));
+}
+
+.launchLabel {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+}
+
+.launchMeter strong {
+  font-family: var(--font-pixel);
+  font-size: clamp(18px, 2.4vw, 30px);
+  letter-spacing: 3px;
+  color: var(--accent);
+  line-height: 1.1;
+}
+
+.launchSub {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+}
+
+.lobbySlotGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+  flex: 1 1 auto;
+  align-content: start;
+}
+
+.lobbySlot {
+  min-height: 82px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid rgba(255, 138, 42, 0.16);
+  background: rgba(255, 138, 42, 0.03);
+}
+
+.lobbySlotFilled {
+  border-color: rgba(255, 138, 42, 0.38);
+  background: rgba(255, 138, 42, 0.08);
+}
+
+.lobbySlotReady {
+  border-color: rgba(122, 216, 102, 0.65);
+  background: rgba(122, 216, 102, 0.07);
+}
+
+.lobbySlotHost {
+  border-color: var(--accent);
+}
+
+.lobbySlotEmpty {
+  border-style: dashed;
+  opacity: 0.64;
+}
+
+.slotNumber {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--bg);
+  background: var(--accent);
+}
+
+.slotBody {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.slotName {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slotMeta,
+.slotEmptyText {
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+}
+
+.lobbySlotReady .slotMeta { color: var(--ok); }
+.lobbySlotHost .slotMeta { color: var(--accent); }
+
+.lobbyInfoPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 16px;
+}
+
+.lobbyRules dl {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.lobbyRules dl div {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+}
+
+.lobbyRules dt,
+.lobbyRules dd {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 1.4px;
+}
+
+.lobbyRules dt { color: var(--text-faint); }
+.lobbyRules dd {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.lobbyInviteBox {
+  display: grid;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(255, 138, 42, 0.2);
+}
+
+.inviteHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
 }
 
 .heroCopyBtn {
   font-family: var(--font-pixel);
-  font-size: 9px;
+  font-size: 8px;
   letter-spacing: 2px;
-  padding: 8px 12px;
+  padding: 7px 10px;
   color: var(--accent);
   background: transparent;
   border: 1px dashed rgba(255, 138, 42, 0.5);
@@ -285,111 +494,37 @@
 }
 
 .heroLink {
-  grid-area: link;
   font-family: var(--font-pixel);
-  font-size: 8px;
-  letter-spacing: 1px;
+  font-size: 7px;
+  letter-spacing: 0.8px;
   color: var(--text-dim);
   word-break: break-all;
-  line-height: 1.3;
+  line-height: 1.45;
 }
 
 .heroQR {
-  grid-area: qr;
-  padding: 6px;
+  width: 126px;
+  height: 126px;
+  padding: 7px;
   border: 1px dashed rgba(255, 138, 42, 0.35);
   display: grid;
   place-items: center;
   background: rgba(0, 0, 0, 0.25);
+  justify-self: center;
 }
 .heroQR canvas { display: block; }
-
-.lobbyChips {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 0 4px;
-}
-
-.chip {
-  font-family: var(--font-pixel);
-  font-size: 8px;
-  letter-spacing: 2px;
-  padding: 6px 10px;
-  border: 1px solid rgba(255, 138, 42, 0.25);
-  color: var(--text);
-}
-.chipAccent {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: rgba(255, 138, 42, 0.08);
-}
-.chipMuted {
-  font-family: var(--font-pixel);
-  font-size: 8px;
-  letter-spacing: 1.5px;
-  color: var(--text-faint);
-  margin-left: auto;
-  padding: 6px 0;
-}
-
-.lobbyProgress {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  border: 1px dashed rgba(255, 138, 42, 0.18);
-  background: rgba(255, 138, 42, 0.03);
-}
-
-.progressLabel {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  font-family: var(--font-pixel);
-  font-size: 9px;
-  letter-spacing: 2px;
-  color: var(--text-faint);
-}
-.progressLabel span:last-child { color: var(--accent); }
-
-.progressTrack {
-  display: flex;
-  gap: 4px;
-}
-.progressDot {
-  flex: 1;
-  height: 8px;
-  background: rgba(255, 138, 42, 0.12);
-  border: 1px solid rgba(255, 138, 42, 0.18);
-  transition: background 0.2s;
-}
-.progressDot.progressOn {
-  background: var(--accent);
-  border-color: var(--accent);
-  box-shadow: 0 0 6px rgba(255, 138, 42, 0.4);
-}
-
-.progressHint {
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-style: italic;
-  color: var(--text-faint);
-  text-align: center;
-  margin-top: 4px;
-}
 
 .lobbyCtaWrap {
   display: flex;
   justify-content: center;
+  margin-top: auto;
 }
 
 .lobbyCtaPrimary {
   font-family: var(--font-pixel);
-  font-size: 14px;
+  font-size: 15px;
   letter-spacing: 3px;
-  padding: 18px 28px;
+  padding: 19px 28px;
   width: 100%;
   background: var(--accent);
   color: #1a0a00;
@@ -419,6 +554,30 @@
   background: rgba(255, 138, 42, 0.08);
 }
 
+.lobbyFlow {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.lobbyFlow span {
+  min-width: 0;
+  padding: 7px 6px;
+  text-align: center;
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: var(--text-faint);
+  border: 1px solid rgba(255, 138, 42, 0.18);
+}
+
+.lobbyFlow span:first-child {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
 .lobbyTip {
   font-family: var(--font-body);
   font-size: 12px;
@@ -428,13 +587,50 @@
   letter-spacing: 0.3px;
 }
 
-@media (max-width: 720px) {
-  .lobbyHero {
+@media (max-width: 980px) {
+  .lobbyBoardGrid {
     grid-template-columns: 1fr;
-    grid-template-areas: "label" "code" "link" "qr";
   }
-  .heroQR { justify-self: center; }
-  .heroCode { font-size: 26px; }
+  .lobbyInfoPanel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+  }
+  .lobbyInviteBox {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+    border-left: 1px dashed rgba(255, 138, 42, 0.2);
+    padding-left: 16px;
+  }
+}
+
+@media (max-width: 720px) {
+  .lobbyBoard {
+    min-height: auto;
+    padding: 18px;
+  }
+  .lobbyTopline {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .lobbyRoomCode {
+    align-items: flex-start;
+  }
+  .lobbySlotGrid {
+    grid-template-columns: 1fr;
+  }
+  .lobbyInfoPanel {
+    display: flex;
+  }
+  .lobbyInviteBox {
+    padding-left: 0;
+    padding-top: 16px;
+    border-left: 0;
+    border-top: 1px dashed rgba(255, 138, 42, 0.2);
+  }
+  .lobbyFlow {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 .lobbyCol {
   display: flex;
