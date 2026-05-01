@@ -1,24 +1,20 @@
 .wrap {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  width: min(380px, calc(100vw - 40px));
   display: flex;
   flex-direction: column;
-  border: 2px solid var(--accent-dim);
-  background: var(--bg);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
-  z-index: 40;
-  transition: max-height 0.2s ease;
+  border: 1px dashed rgba(255, 138, 42, 0.18);
+  background: rgba(255, 138, 42, 0.03);
   overflow: hidden;
+  align-self: stretch;
+  min-width: 0;
 }
 
 .wrapOpen {
-  max-height: 60dvh;
+  height: 100%;
+  min-height: 320px;
 }
 
 .wrapClosed {
-  max-height: 36px;
+  height: auto;
 }
 
 .header {
@@ -68,8 +64,8 @@
 }
 
 .list {
-  flex: 1;
-  min-height: 180px;
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 10px 12px;
   overflow-y: auto;
   display: flex;
@@ -188,11 +184,7 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 600px) {
-  .wrap {
-    right: 10px;
-    bottom: 10px;
-    left: 10px;
-    width: auto;
-  }
+@media (max-width: 1100px) {
+  .body { font-size: 13px; }
+  .input { font-size: 13px; }
 }

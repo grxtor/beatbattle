@@ -5,9 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Sketch from "@/components/Sketch";
 import { useToast } from "@/components/Toast";
-import HostControls from "./HostControls";
 import LeaveConfirmModal from "./LeaveConfirmModal";
-import PlayerStatusStrip, { type StripPlayer } from "./PlayerStatusStrip";
+import RoomSidePanel, { type PanelPlayer } from "./RoomSidePanel";
 import RoomChat from "./RoomChat";
 import TrackPlayer from "./TrackPlayer";
 import VoteBreakdown from "./VoteBreakdown";
@@ -524,8 +523,8 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
   const votingPlayers = room.players.filter((p) => p.votesTotal > 0);
   const votedComplete = votingPlayers.filter((p) => p.votesCast >= p.votesTotal).length;
 
-  // Helper: full strip player view used in every phase.
-  const stripPlayers: StripPlayer[] = room.players;
+  // Helper: full panel player view used in every phase.
+  const panelPlayers: PanelPlayer[] = room.players;
 
   // Locate user's own track for preview UI in PRODUCTION/UPLOAD.
   const myTrack = room.tracks.find((t) => t.mine && t.audioUrl);
@@ -555,32 +554,29 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
 
       <PhaseSteps phase={phase} />
 
-      {/* Live status strip — visible across every active phase. */}
-      <PlayerStatusStrip
-        phase={phase}
-        players={stripPlayers}
-        results={room.results}
-        meId={me.id}
-      />
-
-      {isHost && (
-        <HostControls
+      <div className={styles.gameGrid}>
+        {/* Left rail — players + per-row kick + host tools. Always visible
+            mid-battle so everyone can see who's online / submitted / voting. */}
+        <RoomSidePanel
           code={code}
           phase={phase}
+          players={panelPlayers}
+          results={room.results}
+          meId={me.id}
+          isHost={isHost}
           extendedSec={room.extendedSec}
-          players={room.players}
           onAfterAction={load}
         />
-      )}
 
-      {/* Spectator banner — surfaces above whichever phase content renders below. */}
-      {me.isSpectator && phase !== "RESULTS" && phase !== "CANCELLED" && (
-        <div className={styles.spectatorBanner}>
-          <span>
-            <b>Spectator mode</b> — you joined mid-battle. You can vote and earn voting XP, but cannot submit a track.
-          </span>
-        </div>
-      )}
+        <div className={styles.gameMain}>
+          {/* Spectator banner — surfaces above whichever phase content renders below. */}
+          {me.isSpectator && phase !== "RESULTS" && phase !== "CANCELLED" && (
+            <div className={styles.spectatorBanner}>
+              <span>
+                <b>Spectator mode</b> — you joined mid-battle. You can vote and earn voting XP, but cannot submit a track.
+              </span>
+            </div>
+          )}
 
       {/* ===================== LOBBY ===================== */}
       {phase === "LOBBY" && (
@@ -1137,10 +1133,13 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
           <Link href="/">← BACK HOME</Link>
         </div>
       )}
+        </div>
 
-      {me.inRoom && phase !== "CANCELLED" && (
-        <RoomChat code={code} meId={me.id} phase={phase} />
-      )}
+        {/* Right rail — chat. Mounted only while in-room and not cancelled. */}
+        {me.inRoom && phase !== "CANCELLED" && (
+          <RoomChat code={code} meId={me.id} phase={phase} />
+        )}
+      </div>
 
       <LeaveConfirmModal
         open={leaveOpen}

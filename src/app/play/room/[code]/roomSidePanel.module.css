@@ -1,0 +1,218 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 138, 42, 0.03);
+  border: 1px dashed rgba(255, 138, 42, 0.18);
+  padding: 10px 8px 8px;
+  min-width: 0;
+  align-self: stretch;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 4px 8px;
+  border-bottom: 1px dashed rgba(255, 138, 42, 0.15);
+  margin-bottom: 8px;
+}
+
+.title {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--accent);
+}
+
+.count {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--text-faint);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: calc(100dvh - 320px);
+  min-height: 100px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px;
+  border: 1px solid rgba(255, 138, 42, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+  min-width: 0;
+}
+
+.rowMe { border-color: var(--accent); }
+.rowHost { border-color: rgba(255, 138, 42, 0.45); }
+.rowHost.rowMe { border-color: var(--accent); }
+
+.avBox {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+}
+
+.av {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: #1a0a00;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 0.5px;
+}
+
+.dot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid #0a0604;
+  transform: translateZ(0);
+}
+.dot.dotOn { background: var(--ok); box-shadow: 0 0 4px var(--ok); }
+.dot.dotOff { background: #732222; }
+
+.body {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1px;
+  min-width: 0;
+}
+
+.name {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.youTag {
+  color: var(--accent);
+  font-size: 7px;
+  letter-spacing: 1px;
+}
+
+.meta {
+  font-family: var(--font-pixel);
+  font-size: 6.5px;
+  letter-spacing: 1px;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hostTag {
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.afkTag {
+  color: #c25151;
+}
+
+.badge {
+  font-family: var(--font-pixel);
+  font-size: 6.5px;
+  letter-spacing: 1.2px;
+  margin-top: 2px;
+  text-transform: uppercase;
+}
+
+.badge.tonOk     { color: var(--ok); }
+.badge.tonWarn   { color: #e0b53a; }
+.badge.tonAccent { color: var(--accent); }
+.badge.tonMuted  { color: var(--text-faint); }
+
+.kickBtn {
+  font-family: var(--font-pixel);
+  font-size: 6.5px;
+  letter-spacing: 1px;
+  color: #f1c2c2;
+  background: rgba(160, 30, 30, 0.18);
+  border: 1px solid rgba(160, 30, 30, 0.5);
+  padding: 4px 6px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, transform 0.05s;
+}
+.kickBtn:hover:not(:disabled) {
+  background: rgba(160, 30, 30, 0.35);
+  color: #fff;
+  transform: translate(-1px, -1px);
+}
+.kickBtn:active:not(:disabled) { transform: translate(1px, 1px); }
+.kickBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.hostFoot {
+  margin-top: 10px;
+  padding: 8px 4px 0;
+  border-top: 1px dashed rgba(255, 138, 42, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hostFootTitle {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: var(--text-faint);
+  padding-left: 2px;
+}
+
+.hostBtn {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 1.2px;
+  color: var(--accent);
+  background: transparent;
+  border: 1px dashed rgba(255, 138, 42, 0.45);
+  padding: 8px 10px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.1s, transform 0.05s;
+}
+.hostBtn:hover:not(:disabled) {
+  background: rgba(255, 138, 42, 0.08);
+  transform: translate(-1px, -1px);
+}
+.hostBtn:active:not(:disabled) { transform: translate(1px, 1px); }
+.hostBtn:disabled {
+  color: var(--text-faint);
+  border-color: rgba(255, 138, 42, 0.18);
+  cursor: not-allowed;
+}
+
+@media (max-width: 1100px) {
+  .panel { font-size: 9px; }
+  .av { width: 24px; height: 24px; font-size: 7px; }
+  .avBox { width: 24px; height: 24px; }
+  .name { font-size: 8px; }
+  .meta { font-size: 6px; }
+  .badge { font-size: 6px; }
+}
