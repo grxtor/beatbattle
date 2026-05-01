@@ -1,13 +1,15 @@
 .panel {
   display: flex;
   flex-direction: column;
-  background: rgba(255, 138, 42, 0.03);
+  background: rgba(10, 6, 4, 0.92);
   border: 1px dashed rgba(255, 138, 42, 0.18);
   padding: 10px 8px 8px;
   min-width: 0;
   height: 100%;
   align-self: stretch;
   overflow: hidden;
+  position: relative;
+  z-index: 10;
 }
 
 .head {

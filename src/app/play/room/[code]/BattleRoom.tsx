@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Sketch from "@/components/Sketch";
 import { useToast } from "@/components/Toast";
+import { QRCodeCanvas } from "qrcode.react";
 import LayoutSplitter from "./LayoutSplitter";
 import LeaveConfirmModal from "./LeaveConfirmModal";
 import RoomSidePanel, { type PanelPlayer } from "./RoomSidePanel";
@@ -647,46 +648,91 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
 
       {/* ===================== LOBBY ===================== */}
       {phase === "LOBBY" && (
-        <div className={styles.lobby}>
-          {/* Players are rendered in the left RoomSidePanel — no need to
-              duplicate them here. Settings + invite + ready/start fill the
-              center on their own. */}
-          <Sketch variant={2} className={styles.lobbyCol}>
-            <div className={styles.colTitle}><span>ROOM SETTINGS</span></div>
-            <div className={styles.lobbyInfo}>
-              <span>GENRE</span><b>{genreDisplay(room.genre)}</b>
-              <span>LENGTH</span><b>{room.lengthMin} MINUTES</b>
-              <span>DIFFICULTY</span><b>{room.difficulty}</b>
-              <span>PRIVACY</span><b>{room.privacy}</b>
-              <span>HOST</span><b>@{room.host.username}</b>
-            </div>
-
-            <div className={styles.colTitle}><span>INVITE LINK</span></div>
-            <div className={styles.inviteRow}>
-              <input readOnly value={inviteUrl} />
+        <div className={styles.lobbyV2}>
+          {/* Hero invite — single clear card, big code + QR + copy. */}
+          <Sketch variant={1} className={styles.lobbyHero}>
+            <span className={styles.heroLabel}>INVITE CODE</span>
+            <div className={styles.heroCodeRow}>
+              <span className={styles.heroCode}>{code}</span>
               <button
-                className={`${styles.miniBtn} ${inviteCopied ? styles.ok : ""}`}
+                type="button"
+                className={`${styles.heroCopyBtn} ${inviteCopied ? styles.heroCopyOk : ""}`}
                 onClick={copyInvite}
               >
-                {inviteCopied ? "✓" : "COPY"}
+                {inviteCopied ? "✓ COPIED" : "COPY LINK"}
               </button>
             </div>
+            <span className={styles.heroLink}>{inviteUrl.replace(/^https?:\/\//, "")}</span>
+            <div className={styles.heroQR} aria-hidden="true">
+              <QRCodeCanvas
+                value={inviteUrl}
+                size={148}
+                bgColor="transparent"
+                fgColor="#ff8a2a"
+                marginSize={0}
+                level="M"
+              />
+            </div>
+          </Sketch>
 
-            <div className={styles.readyRow}>
+          {/* Chip strip — single source of truth for room metadata. */}
+          <div className={styles.lobbyChips}>
+            <span className={`${styles.chip} ${styles.chipAccent}`}>{genreDisplay(room.genre)}</span>
+            <span className={styles.chip}>{room.lengthMin}M</span>
+            <span className={styles.chip}>{room.difficulty}</span>
+            <span className={styles.chip}>{room.privacy}</span>
+            <span className={styles.chipMuted}>HOST · @{room.host.username}</span>
+          </div>
+
+          {/* Player progress — visual count + waiting hint. */}
+          <div className={styles.lobbyProgress}>
+            <div className={styles.progressLabel}>
+              <span>PLAYERS</span>
+              <span>{room.players.length} / {room.maxPlayers}</span>
+            </div>
+            <div className={styles.progressTrack}>
+              {Array.from({ length: room.maxPlayers }, (_, i) => (
+                <span
+                  key={i}
+                  className={`${styles.progressDot} ${
+                    i < room.players.length ? styles.progressOn : ""
+                  }`}
+                />
+              ))}
+            </div>
+            {room.players.length < 2 && (
+              <span className={styles.progressHint}>
+                Waiting for at least 1 more producer to join…
+              </span>
+            )}
+          </div>
+
+          {/* Single contextual CTA — host starts, others toggle ready. */}
+          <div className={styles.lobbyCtaWrap}>
+            {isHost ? (
               <button
-                className={`${styles.readyBtn} ${amReady ? styles.on : ""}`}
+                type="button"
+                className={`${styles.lobbyCtaPrimary} ${
+                  room.players.length < 2 ? styles.lobbyCtaSolo : ""
+                }`}
+                onClick={start}
+              >
+                {room.players.length < 2 ? "START SOLO →" : "START BATTLE →"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={`${styles.lobbyCtaPrimary} ${amReady ? styles.lobbyCtaReady : ""}`}
                 onClick={toggleReady}
               >
-                {amReady ? "✓ READY" : "NOT READY"}
-              </button>
-            </div>
-
-            {isHost && (
-              <button className={styles.lobbyCta} onClick={start}>
-                START BATTLE →
+                {amReady ? "✓ READY — WAITING FOR HOST" : "MARK READY"}
               </button>
             )}
-          </Sketch>
+          </div>
+
+          <span className={styles.lobbyTip}>
+            Tip — using all 4 samples in your beat earns bonus XP.
+          </span>
         </div>
       )}
 
@@ -1193,7 +1239,13 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
         )}
       </div>
 
-      <WanderingMascot />
+      <WanderingMascot
+        bounds={{
+          // wrap padding (22px) + left rail + splitter (8px) + breathing room
+          left: 22 + layout.left + 8 + 16,
+          right: 22 + layout.right + 8 + 16,
+        }}
+      />
 
       <LeaveConfirmModal
         open={leaveOpen}

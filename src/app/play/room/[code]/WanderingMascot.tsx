@@ -14,6 +14,11 @@ import styles from "./wanderingMascot.module.css";
  *
  * Click the mascot to make it skip ahead to a new spot, or it'll just stand
  * around until the next tick.
+ *
+ * Stays inside the optional `bounds` rect so it doesn't wander into side
+ * rails / panels — the mascot lives behind those panels visually anyway via
+ * a low z-index, but constraining horizontally keeps it visible most of the
+ * time instead of disappearing under a column.
  */
 
 const STEP_MIN_MS = 6_000;
@@ -26,16 +31,26 @@ const SAFE_SIDE_PX = 32;
 
 type Pos = { x: number; y: number; flip: boolean };
 
+type Bounds = { left: number; right: number; topFraction?: number };
+
+type Props = {
+  /** Restrict horizontal range to [bounds.left, vw - bounds.right]. */
+  bounds?: Bounds | null;
+};
+
 function randInt(min: number, max: number): number {
   return Math.floor(min + Math.random() * (max - min));
 }
 
-function pickPos(prev: Pos, vw: number, vh: number): Pos {
-  // Wander along the lower third of the viewport so the mascot doesn't cover
-  // the main play area.
-  const minX = SAFE_SIDE_PX;
-  const maxX = Math.max(minX + 1, vw - MASCOT_PX - SAFE_SIDE_PX);
-  const lowY = Math.max(0, vh * 0.55);
+function pickPos(prev: Pos, vw: number, vh: number, bounds: Bounds | null): Pos {
+  // Wander along the lower portion of the viewport so the mascot doesn't
+  // cover the main play area.
+  const leftPad = bounds?.left ?? SAFE_SIDE_PX;
+  const rightPad = bounds?.right ?? SAFE_SIDE_PX;
+  const minX = leftPad;
+  const maxX = Math.max(minX + 1, vw - MASCOT_PX - rightPad);
+  const top = bounds?.topFraction ?? 0.55;
+  const lowY = Math.max(0, vh * top);
   const minY = lowY;
   const maxY = Math.max(lowY + 1, vh - MASCOT_PX - SAFE_BOTTOM_PX);
   const x = randInt(minX, maxX);
@@ -43,7 +58,7 @@ function pickPos(prev: Pos, vw: number, vh: number): Pos {
   return { x, y, flip: x < prev.x };
 }
 
-export default function WanderingMascot() {
+export default function WanderingMascot({ bounds = null }: Props) {
   const [pos, setPos] = useState<Pos>(() => ({ x: 40, y: 600, flip: false }));
   const [travelMs, setTravelMs] = useState(3_000);
   // Local mood for the wanderer — keeps walking/idle isolated from any other
@@ -60,6 +75,13 @@ export default function WanderingMascot() {
     setPos((p) => ({ ...p, x: Math.min(p.x, vw - MASCOT_PX - SAFE_SIDE_PX), y: vh - MASCOT_PX - SAFE_BOTTOM_PX }));
   }, []);
 
+  // Keep latest bounds in a ref so the wander loop reads fresh values without
+  // restarting itself on every layout tweak.
+  const boundsRef = useRef<Bounds | null>(bounds);
+  useEffect(() => {
+    boundsRef.current = bounds;
+  }, [bounds]);
+
   // Wander loop: pick a destination → walk → idle → repeat.
   useEffect(() => {
     let cancelled = false;
@@ -70,7 +92,7 @@ export default function WanderingMascot() {
       const vh = window.innerHeight;
       const tMs = randInt(TRAVEL_MIN_MS, TRAVEL_MAX_MS);
       setTravelMs(tMs);
-      setPos((prev) => pickPos(prev, vw, vh));
+      setPos((prev) => pickPos(prev, vw, vh, boundsRef.current));
       setMood("walking");
 
       // After the travel transition completes, drop back to idle.
