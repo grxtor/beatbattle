@@ -1,0 +1,47 @@
+.splitter {
+  width: 8px;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  align-self: stretch;
+  outline: none;
+  transition: background 0.1s ease;
+  flex: 0 0 8px;
+  user-select: none;
+  touch-action: none;
+}
+
+.splitter:hover,
+.splitter:focus-visible {
+  background: rgba(255, 138, 42, 0.08);
+}
+
+.splitter:active {
+  background: rgba(255, 138, 42, 0.18);
+}
+
+.grip {
+  width: 2px;
+  height: 32px;
+  background: var(--accent-dim);
+  border-left: 1px dashed rgba(255, 138, 42, 0.35);
+  border-right: 1px dashed rgba(255, 138, 42, 0.35);
+  transform: scaleY(0.4);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.splitter:hover .grip,
+.splitter:focus-visible .grip,
+.splitter:active .grip {
+  transform: scaleY(1);
+  background: var(--accent);
+}
+
+@media (max-width: 1100px) {
+  .splitter {
+    display: none;
+  }
+}

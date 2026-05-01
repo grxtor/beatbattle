@@ -1,0 +1,26 @@
+.wrap {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 35;
+  pointer-events: auto;
+  cursor: pointer;
+  will-change: transform;
+  user-select: none;
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.55));
+}
+
+.wrap:hover {
+  filter: drop-shadow(0 8px 12px rgba(255, 138, 42, 0.35));
+}
+
+.wrap:focus-visible {
+  outline: 2px dashed var(--accent);
+  outline-offset: 6px;
+}
+
+@media (max-width: 1100px) {
+  /* Hide on small screens — not enough room for it to feel cute, more
+     likely to overlap the single-column layout. */
+  .wrap { display: none; }
+}

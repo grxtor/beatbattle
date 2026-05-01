@@ -17,9 +17,11 @@
 
 .gameGrid {
   display: grid;
-  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) minmax(280px, 340px);
-  gap: 16px;
-  align-items: start;
+  /* Columns are driven inline from BattleRoom: left | splitter | main | splitter | right.
+     Default fallback is below — used while JS is hydrating or as a safety net. */
+  grid-template-columns: 240px 8px minmax(0, 1fr) 8px 320px;
+  gap: 8px;
+  align-items: stretch;
   min-height: 0;
 }
 
@@ -30,15 +32,11 @@
   min-width: 0;
 }
 
-@media (max-width: 1280px) {
-  .gameGrid {
-    grid-template-columns: minmax(200px, 230px) minmax(0, 1fr) minmax(260px, 300px);
-  }
-}
-
 @media (max-width: 1100px) {
   .gameGrid {
-    grid-template-columns: 1fr;
+    /* Stack on small screens; splitters hide via their own media query. */
+    grid-template-columns: 1fr !important;
+    gap: 16px;
   }
 }
 

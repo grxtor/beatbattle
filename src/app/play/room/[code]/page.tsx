@@ -8,7 +8,7 @@ export default async function BattleRoomPage({
 }) {
   const { code } = await params;
   return (
-    <AppShell showFriends={false} showRooms={false} compact>
+    <AppShell showFriends={false} showRooms={false} showMascot={false} compact>
       <BattleRoom code={code} />
     </AppShell>
   );

@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Sketch from "@/components/Sketch";
 import { useToast } from "@/components/Toast";
+import LayoutSplitter from "./LayoutSplitter";
 import LeaveConfirmModal from "./LeaveConfirmModal";
 import RoomSidePanel, { type PanelPlayer } from "./RoomSidePanel";
 import RoomChat from "./RoomChat";
+import WanderingMascot from "./WanderingMascot";
 import TrackPlayer from "./TrackPlayer";
 import VoteBreakdown from "./VoteBreakdown";
 import WaitingOnList from "./WaitingOnList";
@@ -96,6 +98,39 @@ const ACCEPTED_MIMES = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "
 const URGENT_THRESHOLD_SEC = 10;
 const TIMED_PHASES = new Set<Phase>(["REVEAL", "PRODUCTION", "UPLOAD", "VOTING"]);
 
+// Resizable layout — clamp ranges + persistence key.
+const LAYOUT_KEY = "beatbattle.layout.v1";
+const LEFT_DEFAULT = 240;
+const RIGHT_DEFAULT = 320;
+const LEFT_MIN = 180;
+const LEFT_MAX = 420;
+const RIGHT_MIN = 240;
+const RIGHT_MAX = 520;
+
+type LayoutWidths = { left: number; right: number };
+
+function readStoredLayout(): LayoutWidths {
+  if (typeof window === "undefined") {
+    return { left: LEFT_DEFAULT, right: RIGHT_DEFAULT };
+  }
+  try {
+    const raw = window.localStorage.getItem(LAYOUT_KEY);
+    if (!raw) return { left: LEFT_DEFAULT, right: RIGHT_DEFAULT };
+    const parsed = JSON.parse(raw) as Partial<LayoutWidths>;
+    const left = Math.max(
+      LEFT_MIN,
+      Math.min(LEFT_MAX, Number(parsed.left) || LEFT_DEFAULT),
+    );
+    const right = Math.max(
+      RIGHT_MIN,
+      Math.min(RIGHT_MAX, Number(parsed.right) || RIGHT_DEFAULT),
+    );
+    return { left, right };
+  } catch {
+    return { left: LEFT_DEFAULT, right: RIGHT_DEFAULT };
+  }
+}
+
 type BattleRoomProps = { code: string };
 
 function fmtCountdown(seconds: number): string {
@@ -155,10 +190,27 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
   const [allowReplace, setAllowReplace] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [layout, setLayout] = useState<LayoutWidths>(() => ({
+    left: LEFT_DEFAULT,
+    right: RIGHT_DEFAULT,
+  }));
   const pollingRef = useRef<number | null>(null);
   // Refs for one-shot effects driven by polling deltas.
   const lastPhaseRef = useRef<Phase | null>(null);
   const restoreFiredRef = useRef(false);
+
+  // Hydrate layout widths from localStorage after mount (avoids SSR mismatch).
+  useEffect(() => {
+    setLayout(readStoredLayout());
+  }, []);
+
+  const persistLayout = useCallback((next: LayoutWidths) => {
+    try {
+      window.localStorage.setItem(LAYOUT_KEY, JSON.stringify(next));
+    } catch {
+      /* storage full / disabled — fine, just lose persistence */
+    }
+  }, []);
 
   /* --- polling + time tick --- */
 
@@ -554,7 +606,12 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
 
       <PhaseSteps phase={phase} />
 
-      <div className={styles.gameGrid}>
+      <div
+        className={styles.gameGrid}
+        style={{
+          gridTemplateColumns: `${layout.left}px 8px minmax(0, 1fr) 8px ${layout.right}px`,
+        }}
+      >
         {/* Left rail — players + per-row kick + host tools. Always visible
             mid-battle so everyone can see who's online / submitted / voting. */}
         <RoomSidePanel
@@ -566,6 +623,16 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
           isHost={isHost}
           extendedSec={room.extendedSec}
           onAfterAction={load}
+        />
+
+        <LayoutSplitter
+          value={layout.left}
+          min={LEFT_MIN}
+          max={LEFT_MAX}
+          edge="left"
+          ariaLabel="Resize players panel"
+          onChange={(w) => setLayout((l) => ({ ...l, left: w }))}
+          onCommit={(w) => persistLayout({ ...layout, left: w })}
         />
 
         <div className={styles.gameMain}>
@@ -1135,11 +1202,25 @@ export default function BattleRoom({ code: rawCode }: BattleRoomProps) {
       )}
         </div>
 
+        <LayoutSplitter
+          value={layout.right}
+          min={RIGHT_MIN}
+          max={RIGHT_MAX}
+          edge="right"
+          ariaLabel="Resize chat panel"
+          onChange={(w) => setLayout((l) => ({ ...l, right: w }))}
+          onCommit={(w) => persistLayout({ ...layout, right: w })}
+        />
+
         {/* Right rail — chat. Mounted only while in-room and not cancelled. */}
-        {me.inRoom && phase !== "CANCELLED" && (
+        {me.inRoom && phase !== "CANCELLED" ? (
           <RoomChat code={code} meId={me.id} phase={phase} />
+        ) : (
+          <div aria-hidden />
         )}
       </div>
+
+      <WanderingMascot />
 
       <LeaveConfirmModal
         open={leaveOpen}
